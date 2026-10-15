@@ -1,0 +1,104 @@
+// src/app/pedidos/page.tsx
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { OrdersTable } from '@/components/OrdersTable';
+import { supabase } from '@/lib/supabase';
+import { Order } from '@/types';
+
+export default function MeusPedidosPage() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [pedidos, setPedidos] = useState<Order[]>([]);
+
+  useEffect(() => {
+    const carregarPedidos = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.push('/login');
+        return;
+      }
+
+      // Verificar pedidos expirados antes de carregar
+      await fetch('/api/verificar-expirados', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: session.user.id }),
+      });
+
+      // Buscar pedidos reais
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .order('data_criacao', { ascending: false });
+
+      if (error) {
+        console.error('Erro ao buscar pedidos:', error);
+      } else if (data) {
+        const pedidosFormatados = data.map((p: any) => ({
+          id: p.id,
+          numero: p.numero,
+          status: p.status,
+          sms_otp: p.sms_otp,
+          codigo_recebido: p.codigo_recebido,
+          pais: p.pais,
+          servico: p.servico,
+          valor: p.valor,
+          // Data formatada para mostrar ao utilizador
+          data_criacao: new Date(p.data_criacao).toLocaleString('pt-MZ'),
+          // Data original ISO para os cálculos do contador
+          data_criacao_raw: p.data_criacao,
+        }));
+        setPedidos(pedidosFormatados);
+      }
+      setLoading(false);
+    };
+
+    carregarPedidos();
+
+    // Verificar a cada 60 segundos se há pedidos expirados
+    const intervalo = setInterval(async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const resposta = await fetch('/api/verificar-expirados', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: session.user.id }),
+        });
+        const dados = await resposta.json();
+        
+        if (dados.reembolsados > 0) {
+          window.location.reload();
+        }
+      }
+    }, 60000);
+
+    return () => clearInterval(intervalo);
+  }, [router]);
+
+  return (
+    <div className="p-8 max-w-7xl mx-auto min-h-screen bg-gray-50">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Meus Pedidos</h1>
+        <p className="text-gray-500">Acompanhe o status dos seus números virtuais.</p>
+      </div>
+
+      {loading ? (
+        <div className="text-center py-12 text-gray-500">A carregar os seus pedidos...</div>
+      ) : pedidos.length > 0 ? (
+        <OrdersTable pedidosIniciais={pedidos} />
+      ) : (
+        <div className="bg-white p-12 rounded-xl shadow-sm border border-gray-200 text-center">
+          <p className="text-4xl mb-4">📭</p>
+          <h3 className="text-lg font-bold text-gray-800 mb-2">Ainda não tem pedidos</h3>
+          <p className="text-gray-500 mb-6">Assim que comprar o seu primeiro número, ele aparecerá aqui.</p>
+          <a href="/servicos" className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg transition-colors shadow-md inline-block">
+            Obter Número Agora
+          </a>
+        </div>
+      )}
+    </div>
+  );
+}

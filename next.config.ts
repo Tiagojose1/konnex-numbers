@@ -1,18 +1,17 @@
 import type { NextConfig } from "next";
+import path from "node:path";
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  experimental: {
-    agentFeedback: true,
+  webpack: (config) => {
+    config.resolve.alias = {
+      ...(config.resolve.alias ?? {}),
+      "@": path.resolve(process.cwd(), "src"),
+    };
+    return config;
   },
-  cacheComponents: true,
-  partialPrefetching: true,
   turbopack: {
-    rules: {
-      "*.css": {
-        loaders: ["@tailwindcss/turbopack"],
-        as: "*.css",
-      },
+    resolveAlias: {
+      "@": path.resolve(process.cwd(), "src"),
     },
   },
 };

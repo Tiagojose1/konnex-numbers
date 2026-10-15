@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Fundo do Splash Screen */
+.splash-dark-bg {
+  background-color: #0A0F1D;
+}
+
+/* Animação do fade-in do logotipo */
+@keyframes fadeInLogo {
+  from { opacity: 0; transform: scale(0.85); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.logo-fade-in {
+  animation: fadeInLogo 1s ease-out forwards;
+}
+
+/* Animação do fade-out geral (transição para o app) */
+@keyframes fadeOutScreen {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+.fade-out {
+  animation: fadeOutScreen 0.6s ease-in forwards;
+}
+
+/* Animação dos três pontos (caso queira usar em alternativa) */
+@keyframes bounce-dot {
+  0%, 80%, 100% { transform: scale(0); opacity: 0.5; }
+  40% { transform: scale(1); opacity: 1; }
+}
+
+.dot {
+  width: 12px;
+  height: 12px;
+  background-color: #22d3ee;
+  border-radius: 50%;
+  display: inline-block;
+  animation: bounce-dot 1.4s infinite ease-in-out both;
+}
+.dot:nth-child(1) { animation-delay: -0.32s; }
+.dot:nth-child(2) { animation-delay: -0.16s; }
+.dot:nth-child(3) { animation-delay: 0s; }
