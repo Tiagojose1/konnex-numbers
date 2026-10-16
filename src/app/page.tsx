@@ -24,12 +24,12 @@ export default function LandingPage() {
     };
     checkSession();
 
-    // ⏱️ DURAÇÃO: 20s logo + 20s ícone = 40s no total
-    const LOGO_DURATION = 20000;   // 20 segundos (logo)
-    const ICON_DURATION = 20000;   // 20 segundos (ícone)
-    const TOTAL_DURATION = LOGO_DURATION + ICON_DURATION; // 40s
+    // ⏱️ DURAÇÃO: 15s logo + 15s ícone = 30s no total
+    const LOGO_DURATION = 15000;   // 15 segundos (logo)
+    const ICON_DURATION = 15000;   // 15 segundos (ícone)
+    const TOTAL_DURATION = LOGO_DURATION + ICON_DURATION; // 30s
 
-    // Transição do logo para o ícone aos 20s
+    // Transição do logo para o ícone aos 15
     const transitionTimer = setTimeout(() => setPhase('icon'), LOGO_DURATION);
 
     // Textos dinâmicos distribuídos ao longo dos 40s
@@ -64,40 +64,39 @@ export default function LandingPage() {
   }, [router]);
 
   // ===== SPLASH SCREEN =====
-  if (phase === 'logo' || phase === 'icon' || phase === 'fading') {
+  
+ if (phase === 'logo' || phase === 'icon' || phase === 'fading') {
     return (
       <div className={`min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden bg-[#0A0F1D] ${phase === 'fading' ? 'fade-out' : ''}`}>
         
-        {/* ==== ETAPA 1: LOGO COMPLETO (0s - 20s) ==== */}
+        {/* ==== ETAPA 1: LOGO ==== */}
         {phase === 'logo' && (
           <div className="flex flex-col items-center">
-            {/* ⚠️ Se o ficheiro for .png, mude para /logo.png */}
             <img 
               src="/logo.jpeg" 
               alt="Konnex Numbers" 
-              className="w-80 h-auto logo-fade-in"
+              className="w-80 h-auto logo-fade-in mix-blend-screen"
             />
           </div>
         )}
 
-        {/* ==== ETAPA 2: ÍCONE (20s - 40s) ==== */}
+        {/* ==== ETAPA 2: ÍCONE ==== */}
         {(phase === 'icon' || phase === 'fading') && (
           <div className="flex flex-col items-center">
-            {/* ⚠️ Se o ficheiro for .png, mude para /icon-k.png */}
             <img 
               src="/icon-k.jpg" 
               alt="Konnex Numbers" 
-              className="w-40 h-40 rounded-3xl shadow-2xl logo-fade-in"
+              className="w-40 h-40 rounded-3xl shadow-2xl logo-fade-in mix-blend-screen"
             />
             <h1 className="text-white text-xl font-bold mt-6 logo-fade-in">Konnex Numbers</h1>
           </div>
         )}
 
-        {/* ==== BARRA DE PROGRESSO ==== */}
+        {/* BARRA DE PROGRESSO E TEXTO */}
         <div className="absolute bottom-16 w-4/5 max-w-md">
           <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden mb-3">
             <div 
-              className="h-full rounded-full transition-all duration-1000 ease-linear"
+              className="h-full rounded-full transition-all duration-100 ease-linear"
               style={{ 
                 width: `${progress}%`,
                 background: 'linear-gradient(90deg, #8b5cf6 0%, #3b82f6 33%, #22d3ee 66%, #22c55e 100%)'
@@ -111,7 +110,6 @@ export default function LandingPage() {
       </div>
     );
   }
-
   // ===== LOADING INTERMÉDIO =====
   if (loading) {
     return (
