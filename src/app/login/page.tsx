@@ -14,7 +14,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [mensagem, setMensagem] = useState('');
 
-  const handleLogin = async (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!captcha) {
       setMensagem('Por favor, confirme que não é um robô.');
@@ -23,16 +23,38 @@ export default function LoginPage() {
     setLoading(true);
     setMensagem('');
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    try {
+      // Timeout de 15 segundos para não ficar preso eternamente
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Tempo esgotado. Verifique a sua ligação à internet.')), 15000)
+      );
 
-    if (error) {
-      setMensagem(`Erro: ${error.message}`);
+      const loginPromise = supabase.auth.signInWithPassword({ email, password });
+
+      const resultado = await Promise.race([loginPromise, timeoutPromise]) as any;
+
+      if (resultado.error) {
+        // Erros comuns traduzidos
+        const msg = resultado.error.message;
+        if (msg.includes('Invalid login credentials')) {
+          setMensagem('E-mail ou palavra-passe incorretos.');
+        } else if (msg.includes('Email not confirmed')) {
+          setMensagem('Por favor, confirme o seu e-mail antes de entrar.');
+        } else {
+          setMensagem(`Erro: ${msg}`);
+        }
+        setLoading(false);
+        return;
+      }
+
+      // Login bem-sucedido
+      router.push('/dashboard');
+
+    } catch (err: any) {
+      setMensagem(err.message || 'Ocorreu um erro. Tente novamente.');
       setLoading(false);
-      return;
     }
-    router.push('/dashboard');
   };
-
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 font-sans">
       <div className="max-w-md w-full">
