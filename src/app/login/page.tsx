@@ -20,114 +20,114 @@ export default function LoginPage() {
       setMensagem('Por favor, confirme que não é um robô.');
       return;
     }
-
     setLoading(true);
     setMensagem('');
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
       setMensagem(`Erro: ${error.message}`);
       setLoading(false);
       return;
     }
-
     router.push('/dashboard');
   };
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center p-4">
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 font-sans">
       <div className="max-w-md w-full">
         
-        {/* Logotipo e Título */}
-        <div className="text-center mb-8">
-         <img src="/logo.png" alt="Konnex Numbers" className="h-20 mx-auto mb-4" />
-          <p className="text-gray-500 text-sm">
-            Número Virtual Temporário. Receba SMS de Ativação de aplicativos de todo mundo em poucos segundos.
+        {/* === LOGO + NOME ESTILOSO === */}
+        <div className="text-center mb-10">
+          
+          {/* LOGO OFICIAL */}
+          <div className="flex justify-center mb-6">
+            <img 
+              src="/logo.jpeg" 
+              alt="Konnex Numbers" 
+              className="h-20 w-auto object-contain"
+            />
+          </div>
+          
+          {/* NOME COM GRADIENTE E ESTILO PREMIUM */}
+          <h1 className="text-5xl font-extrabold tracking-tight mb-3">
+            <span className="bg-gradient-to-r from-violet-500 via-blue-500 to-cyan-400 bg-clip-text text-transparent">
+              Konnex
+            </span>
+            <span className="text-white ml-2">Numbers</span>
+          </h1>
+          
+          <p className="text-slate-400 text-sm max-w-sm mx-auto leading-relaxed">
+            Número Virtual Temporário. Receba SMS de ativação de aplicativos de todo o mundo em poucos segundos.
           </p>
         </div>
 
-        {/* Formulário */}
+        {/* === FORMULÁRIO === */}
         <form onSubmit={handleLogin} className="space-y-5">
-          <div>
-            <input 
-              type="email" 
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="E-mail ou login"
-              className="w-full p-4 border border-gray-300 rounded-lg text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-              required
-            />
-          </div>
+          <input 
+            type="email" 
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="E-mail ou login"
+            className="w-full p-4 bg-slate-900 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+            required
+          />
 
-          <div>
-            <input 
-              type="password" 
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password"
-              className="w-full p-4 border border-gray-300 rounded-lg text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-              required
-            />
-          </div>
+          <input 
+            type="password" 
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Password"
+            className="w-full p-4 bg-slate-900 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+            required
+          />
 
-          {/* CAPTCHA Box */}
-          <div className="flex items-center justify-between bg-gray-50 border border-gray-300 p-4 rounded-lg">
-            <div className="flex items-center gap-3">
-              <input 
-                type="checkbox" 
-                checked={captcha}
-                onChange={(e) => setCaptcha(e.target.checked)}
-                className="w-6 h-6 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-              />
-              <span className="text-gray-700 font-medium">Não sou um robô</span>
-            </div>
-            <div className="text-right">
+          <div className="flex items-center gap-3 bg-white p-4 rounded-xl">
+            <input 
+              type="checkbox" 
+              checked={captcha}
+              onChange={(e) => setCaptcha(e.target.checked)}
+              className="w-6 h-6 text-violet-600 rounded border-gray-300 focus:ring-violet-500"
+            />
+            <span className="text-slate-800 font-medium text-sm">Não sou um robô</span>
+            <div className="ml-auto text-right">
               <span className="text-xs text-gray-400 block">reCAPTCHA</span>
             </div>
           </div>
 
-          {/* Lembrar */}
           <div className="flex items-center gap-2">
-            <input type="checkbox" className="w-4 h-4 text-blue-600 rounded" />
-            <span className="text-sm text-gray-600">Lembrar</span>
+            <input type="checkbox" className="w-4 h-4 text-violet-600 rounded" />
+            <span className="text-sm text-slate-400">Lembrar</span>
           </div>
 
-          {/* Botão Entrar */}
           <button 
             type="submit" 
             disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-lg transition-colors shadow-md disabled:opacity-50"
+            className="w-full bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-500 hover:to-blue-500 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-violet-600/30 disabled:opacity-50"
           >
             {loading ? 'A entrar...' : 'Entrar'}
           </button>
         </form>
 
-        {/* Mensagem de Erro */}
         {mensagem && (
-          <div className="mt-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm text-center border border-red-200">
+          <div className="mt-4 p-3 bg-red-900/40 text-red-400 rounded-xl text-sm text-center border border-red-800">
             {mensagem}
           </div>
         )}
 
-        {/* Links Inferiores */}
         <div className="mt-8 space-y-4">
-          <Link href="#" className="block text-center text-blue-600 hover:underline text-sm font-medium">
+          <Link href="/recuperar-senha" className="block text-center text-violet-400 hover:text-violet-300 text-sm font-medium transition-colors">
             Esqueci minha senha
           </Link>
           
-          <Link href="/registo" className="block w-full text-center bg-green-500 hover:bg-green-600 text-white font-bold py-4 rounded-lg transition-colors shadow-md">
+          <Link href="/registo" className="block w-full text-center bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-400 hover:to-green-400 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-emerald-500/30">
             Cadastre-se Agora
           </Link>
 
-          <Link href="#" className="block w-full text-center bg-green-500 hover:bg-green-600 text-white font-bold py-4 rounded-lg transition-colors shadow-md">
+          <Link href="/informacoes" className="block w-full text-center bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-4 rounded-xl transition-colors">
             Mais Informações
           </Link>
         </div>
-
       </div>
     </div>
   );
