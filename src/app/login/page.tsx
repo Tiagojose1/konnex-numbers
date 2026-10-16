@@ -37,19 +37,23 @@ export default function LoginPage() {
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 font-sans">
       <div className="max-w-md w-full">
         
-        {/* === LOGO + NOME ESTILOSO === */}
+        {/* === GLOBO A RODAR + NOME === */}
         <div className="text-center mb-10">
           
-          {/* LOGO OFICIAL */}
-          <div className="flex justify-center mb-6">
+          {/* Globo a rodar continuamente */}
+          <div className="relative flex justify-center mb-6">
+            {/* Brilho por baixo do globo */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-violet-600 rounded-full blur-3xl brilho-pulsante"></div>
+            
+            {/* Globo a rodar */}
             <img 
-              src="/logo.jpeg" 
-              alt="Konnex Numbers" 
-              className="h-20 w-auto object-contain"
+              src="/globo.png" 
+              alt="Globo Konnex" 
+              className="w-24 h-24 relative z-10 globo-girando"
             />
           </div>
           
-          {/* NOME COM GRADIENTE E ESTILO PREMIUM */}
+          {/* Nome com gradiente */}
           <h1 className="text-5xl font-extrabold tracking-tight mb-3">
             <span className="bg-gradient-to-r from-violet-500 via-blue-500 to-cyan-400 bg-clip-text text-transparent">
               Konnex

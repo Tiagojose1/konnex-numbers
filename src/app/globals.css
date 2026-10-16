@@ -11,7 +11,7 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* Fundo do Splash Screen */
+/* Splash Screen - Fundo */
 .splash-dark-bg {
   background-color: #0A0F1D;
 }
@@ -26,7 +26,7 @@ body {
   animation: fadeInLogo 1s ease-out forwards;
 }
 
-/* Animação do fade-out geral (transição para o app) */
+/* Fade-out geral */
 @keyframes fadeOutScreen {
   from { opacity: 1; }
   to   { opacity: 0; }
@@ -36,20 +36,23 @@ body {
   animation: fadeOutScreen 0.6s ease-in forwards;
 }
 
-/* Animação dos três pontos (caso queira usar em alternativa) */
-@keyframes bounce-dot {
-  0%, 80%, 100% { transform: scale(0); opacity: 0.5; }
-  40% { transform: scale(1); opacity: 1; }
+/* ==== ANIMAÇÃO DO GLOBO A RODAR ==== */
+@keyframes girarGlobo {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
 }
 
-.dot {
-  width: 12px;
-  height: 12px;
-  background-color: #22d3ee;
-  border-radius: 50%;
-  display: inline-block;
-  animation: bounce-dot 1.4s infinite ease-in-out both;
+.globo-girando {
+  animation: girarGlobo 8s linear infinite;
+  filter: drop-shadow(0 0 20px rgba(139, 92, 246, 0.5));
 }
-.dot:nth-child(1) { animation-delay: -0.32s; }
-.dot:nth-child(2) { animation-delay: -0.16s; }
-.dot:nth-child(3) { animation-delay: 0s; }
+
+/* Efeito de brilho pulsante por baixo do globo */
+@keyframes brilhoPulsante {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50%      { opacity: 0.6; transform: scale(1.1); }
+}
+
+.brilho-pulsante {
+  animation: brilhoPulsante 3s ease-in-out infinite;
+}
