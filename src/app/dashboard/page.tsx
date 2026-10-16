@@ -2,7 +2,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { formatarMoeda } from '@/lib/currencies';
@@ -15,7 +14,6 @@ const servicosPopulares = [
 ];
 
 export default function DashboardPage() {
-  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [nome, setNome] = useState('');
   const [saldo, setSaldo] = useState(0);
@@ -23,23 +21,70 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const carregarDados = async () => {
+      // 1. Tentar obter a sessão
       const { data: { session } } = await supabase.auth.getSession();
+      
       if (!session) {
-        router.push('/login');
+        // ⏳ Retry: espera 500ms e tenta de novo (evita race condition após login)
+        await new Promise(resolve => setTimeout(resolve, 500));
+        const { data: { session: retrySession } } = await supabase.auth.getSession();
+        
+        if (!retrySession) {
+          // Se mesmo assim não houver sessão, vai para o login
+          window.location.href = '/login';
+          return;
+        }
+
+        // Sessão encontrada na segunda tentativa, usa-a
+        const userId = retrySession.user.id;
+
+        // Verificar pedidos expirados
+        try {
+          const resposta = await fetch('/api/verificar-expirados', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId }),
+          });
+          if (resposta.ok) {
+            const dados = await resposta.json();
+            if (dados.reembolsados > 0) {
+              setTimeout(() => {
+                alert(`⏰ ${dados.reembolsados} pedido(s) expiraram. ${dados.totalReembolsado.toFixed(2)} MT foram devolvidos ao seu saldo.`);
+              }, 500);
+            }
+          }
+        } catch (err) {
+          console.warn('Aviso: Não foi possível verificar pedidos expirados.');
+        }
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('nome_completo, saldo, currency')
+          .eq('id', userId)
+          .single();
+
+        if (profile) {
+          setNome(profile.nome_completo || 'Utilizador');
+          setSaldo(parseFloat(profile.saldo) || 0);
+          setCurrency(profile.currency || 'MZN');
+        }
+        setLoading(false);
         return;
       }
 
-      // 🆕 ADIÇÃO: Verificar pedidos expirados antes de mostrar o saldo
+      // Sessão encontrada logo à primeira
+      const userId = session.user.id;
+
+      // Verificar pedidos expirados
       try {
         const resposta = await fetch('/api/verificar-expirados', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: session.user.id }),
+          body: JSON.stringify({ userId }),
         });
         if (resposta.ok) {
           const dados = await resposta.json();
           if (dados.reembolsados > 0) {
-            // Se houve reembolso, avisa o utilizador
             setTimeout(() => {
               alert(`⏰ ${dados.reembolsados} pedido(s) expiraram. ${dados.totalReembolsado.toFixed(2)} MT foram devolvidos ao seu saldo.`);
             }, 500);
@@ -49,11 +94,10 @@ export default function DashboardPage() {
         console.warn('Aviso: Não foi possível verificar pedidos expirados.');
       }
 
-      // Buscar dados do perfil
       const { data: profile } = await supabase
         .from('profiles')
         .select('nome_completo, saldo, currency')
-        .eq('id', session.user.id)
+        .eq('id', userId)
         .single();
 
       if (profile) {
@@ -63,8 +107,9 @@ export default function DashboardPage() {
       }
       setLoading(false);
     };
+
     carregarDados();
-  }, [router]);
+  }, []);
 
   if (loading) {
     return (

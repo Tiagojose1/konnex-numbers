@@ -3,18 +3,16 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [captcha, setCaptcha] = useState(false);
   const [loading, setLoading] = useState(false);
   const [mensagem, setMensagem] = useState('');
 
-    const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!captcha) {
       setMensagem('Por favor, confirme que não é um robô.');
@@ -24,17 +22,14 @@ export default function LoginPage() {
     setMensagem('');
 
     try {
-      // Timeout de 15 segundos para não ficar preso eternamente
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('Tempo esgotado. Verifique a sua ligação à internet.')), 15000)
       );
 
       const loginPromise = supabase.auth.signInWithPassword({ email, password });
-
       const resultado = await Promise.race([loginPromise, timeoutPromise]) as any;
 
       if (resultado.error) {
-        // Erros comuns traduzidos
         const msg = resultado.error.message;
         if (msg.includes('Invalid login credentials')) {
           setMensagem('E-mail ou palavra-passe incorretos.');
@@ -47,14 +42,15 @@ export default function LoginPage() {
         return;
       }
 
-      // Login bem-sucedido
-      router.push('/dashboard');
+      // ✅ CORREÇÃO: Força recarregamento completo para o Dashboard arrancar com a sessão pronta
+      window.location.href = '/dashboard';
 
     } catch (err: any) {
       setMensagem(err.message || 'Ocorreu um erro. Tente novamente.');
       setLoading(false);
     }
   };
+
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 font-sans">
       <div className="max-w-md w-full">
@@ -62,12 +58,8 @@ export default function LoginPage() {
         {/* === GLOBO A RODAR + NOME === */}
         <div className="text-center mb-10">
           
-          {/* Globo a rodar continuamente */}
           <div className="relative flex justify-center mb-6">
-            {/* Brilho por baixo do globo */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-violet-600 rounded-full blur-3xl brilho-pulsante"></div>
-            
-            {/* Globo a rodar */}
             <img 
               src="/globo.png" 
               alt="Globo Konnex" 
@@ -75,7 +67,6 @@ export default function LoginPage() {
             />
           </div>
           
-          {/* Nome com gradiente */}
           <h1 className="text-5xl font-extrabold tracking-tight mb-3">
             <span className="bg-gradient-to-r from-violet-500 via-blue-500 to-cyan-400 bg-clip-text text-transparent">
               Konnex

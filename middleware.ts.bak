@@ -1,0 +1,17 @@
+// src/middleware.ts
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+
+export function middleware(request: NextRequest) {
+  // ⚠️ NOTA IMPORTANTE:
+  // O Supabase guarda a sessão no localStorage do navegador, e não em cookies.
+  // Por isso, o middleware (que corre no servidor) NÃO consegue ver se o utilizador está logado.
+  // A proteção das rotas é feita DENTRO de cada página (useEffect verifica a sessão).
+  // Este ficheiro está aqui apenas para uso futuro (quando migrarmos para cookies).
+
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
+};
