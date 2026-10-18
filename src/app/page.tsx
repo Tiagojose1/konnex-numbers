@@ -29,17 +29,13 @@ export default function LandingPage() {
     const ICON_DURATION = 15000;   // 15 segundos (ícone)
     const TOTAL_DURATION = LOGO_DURATION + ICON_DURATION; // 30s
 
-    // Transição do logo para o ícone aos 15
     const transitionTimer = setTimeout(() => setPhase('icon'), LOGO_DURATION);
 
-    // Textos dinâmicos distribuídos ao longo dos 40s
     const t1 = setTimeout(() => setStatusText('A configurar canais de comunicação...'), 8000);
     const t2 = setTimeout(() => setStatusText('A preparar números virtuais...'), 18000);
     const t3 = setTimeout(() => setStatusText('A ativar o canal seguro...'), 28000);
     const t4 = setTimeout(() => setStatusText('Quase pronto...'), 36000);
 
-    // Barra de progresso: enche em 40 segundos
-    // 100% / 40s = 2.5% por segundo. Com intervalo de 1s, avança 2.5% de cada vez.
     const progressTimer = setInterval(() => {
       setProgress((prev) => {
         if (prev >= 100) {
@@ -48,9 +44,8 @@ export default function LandingPage() {
         }
         return prev + 2.5;
       });
-    }, 1000); // 1 segundo por cada incremento
+    }, 1000);
 
-    // Fade-out final após os 40s + 600ms
     const finishTimer = setTimeout(() => {
       setPhase('fading');
       setTimeout(() => setPhase('app'), 600);
@@ -64,18 +59,18 @@ export default function LandingPage() {
   }, [router]);
 
   // ===== SPLASH SCREEN =====
-  
- if (phase === 'logo' || phase === 'icon' || phase === 'fading') {
+  if (phase === 'logo' || phase === 'icon' || phase === 'fading') {
     return (
-      <div className={`min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden bg-[#0A0F1D] ${phase === 'fading' ? 'fade-out' : ''}`}>
+      {/* Fundo com gradiente (Foto 2) */}
+      <div className={`min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden bg-gradient-to-br from-[#8a00e6] via-[#0044ff] to-[#00ffaa] ${phase === 'fading' ? 'fade-out' : ''}`}>
         
         {/* ==== ETAPA 1: LOGO ==== */}
         {phase === 'logo' && (
           <div className="flex flex-col items-center">
             <img 
-              src="/logo.jpeg" 
+              src="/logo.jpg" 
               alt="Konnex Numbers" 
-              className="w-80 h-auto logo-fade-in mix-blend-screen"
+              className="w-80 h-auto logo-fade-in mix-blend-multiply drop-shadow-2xl rounded-3xl"
             />
           </div>
         )}
@@ -84,32 +79,33 @@ export default function LandingPage() {
         {(phase === 'icon' || phase === 'fading') && (
           <div className="flex flex-col items-center">
             <img 
-              src="/icon-k.jpg" 
+              src="/incon-k.jpg" 
               alt="Konnex Numbers" 
-              className="w-40 h-40 rounded-3xl shadow-2xl logo-fade-in mix-blend-screen"
+              className="w-40 h-40 rounded-3xl shadow-2xl logo-fade-in object-contain mix-blend-multiply drop-shadow-2xl"
             />
-            <h1 className="text-white text-xl font-bold mt-6 logo-fade-in">Konnex Numbers</h1>
+            <h1 className="text-white text-xl font-bold mt-6 logo-fade-in drop-shadow-md">Konnex Numbers</h1>
           </div>
         )}
 
         {/* BARRA DE PROGRESSO E TEXTO */}
         <div className="absolute bottom-16 w-4/5 max-w-md">
-          <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden mb-3">
+          <div className="w-full h-1.5 bg-black/30 rounded-full overflow-hidden mb-3 backdrop-blur-sm">
             <div 
-              className="h-full rounded-full transition-all duration-100 ease-linear"
+              className="h-full rounded-full transition-all duration-100 ease-linear shadow-[0_0_10px_rgba(255,255,255,0.5)]"
               style={{ 
                 width: `${progress}%`,
-                background: 'linear-gradient(90deg, #8b5cf6 0%, #3b82f6 33%, #22d3ee 66%, #22c55e 100%)'
+                background: 'linear-gradient(90deg, #ffffff 0%, #a855f7 50%, #22d3ee 100%)'
               }}
             ></div>
           </div>
-          <p className="text-slate-400 text-sm text-center font-medium">
+          <p className="text-white/90 text-sm text-center font-medium drop-shadow-md">
             {statusText}
           </p>
         </div>
       </div>
     );
   }
+
   // ===== LOADING INTERMÉDIO =====
   if (loading) {
     return (
@@ -125,7 +121,7 @@ export default function LandingPage() {
       
       <nav className="bg-white/80 backdrop-blur-md border-b border-gray-200 fixed w-full top-0 z-50">
         <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
-          <img src="/logo.jpeg" alt="Konnex Numbers" className="h-12" />
+          <img src="/logo.jpg" alt="Konnex Numbers" className="h-12 rounded-lg object-contain" />
           <div className="flex gap-3">
             <Link href="/login" className="text-gray-600 hover:text-purple-600 font-medium py-2 px-4 transition-colors">
               Entrar
@@ -186,7 +182,7 @@ export default function LandingPage() {
 
       <footer className="bg-gray-900 text-gray-400 py-12 text-center">
         <div className="max-w-4xl mx-auto px-6">
-          <img src="/logo.jpeg" alt="Konnex Numbers" className="h-16 mx-auto mb-4 brightness-0 invert" />
+          <img src="/logo.jpg" alt="Konnex Numbers" className="h-16 mx-auto mb-4 brightness-0 invert rounded-lg object-contain" />
           <p className="mb-6">© 2026 Konnex Numbers. Todos os direitos reservados.</p>
           <div className="flex justify-center gap-6 text-sm">
             <Link href="#" className="hover:text-purple-400 transition-colors">Termos de Uso</Link>
