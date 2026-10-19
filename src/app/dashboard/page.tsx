@@ -21,24 +21,17 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const carregarDados = async () => {
-      // 1. Tentar obter a sessão
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
-        // ⏳ Retry: espera 500ms e tenta de novo (evita race condition após login)
         await new Promise(resolve => setTimeout(resolve, 500));
         const { data: { session: retrySession } } = await supabase.auth.getSession();
-        
         if (!retrySession) {
-          // Se mesmo assim não houver sessão, vai para o login
           window.location.href = '/login';
           return;
         }
-
-        // Sessão encontrada na segunda tentativa, usa-a
         const userId = retrySession.user.id;
-
-        // Verificar pedidos expirados
+        
         try {
           const resposta = await fetch('/api/verificar-expirados', {
             method: 'POST',
@@ -48,21 +41,12 @@ export default function DashboardPage() {
           if (resposta.ok) {
             const dados = await resposta.json();
             if (dados.reembolsados > 0) {
-              setTimeout(() => {
-                alert(`⏰ ${dados.reembolsados} pedido(s) expiraram. ${dados.totalReembolsado.toFixed(2)} MT foram devolvidos ao seu saldo.`);
-              }, 500);
+              setTimeout(() => alert(`⏰ ${dados.reembolsados} pedido(s) expiraram. ${dados.totalReembolsado.toFixed(2)} MT foram devolvidos ao seu saldo.`), 500);
             }
           }
-        } catch (err) {
-          console.warn('Aviso: Não foi possível verificar pedidos expirados.');
-        }
+        } catch (err) { console.warn(err); }
 
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('nome_completo, saldo, currency')
-          .eq('id', userId)
-          .single();
-
+        const { data: profile } = await supabase.from('profiles').select('nome_completo, saldo, currency').eq('id', userId).single();
         if (profile) {
           setNome(profile.nome_completo || 'Utilizador');
           setSaldo(parseFloat(profile.saldo) || 0);
@@ -72,10 +56,8 @@ export default function DashboardPage() {
         return;
       }
 
-      // Sessão encontrada logo à primeira
       const userId = session.user.id;
 
-      // Verificar pedidos expirados
       try {
         const resposta = await fetch('/api/verificar-expirados', {
           method: 'POST',
@@ -85,21 +67,12 @@ export default function DashboardPage() {
         if (resposta.ok) {
           const dados = await resposta.json();
           if (dados.reembolsados > 0) {
-            setTimeout(() => {
-              alert(`⏰ ${dados.reembolsados} pedido(s) expiraram. ${dados.totalReembolsado.toFixed(2)} MT foram devolvidos ao seu saldo.`);
-            }, 500);
+            setTimeout(() => alert(`⏰ ${dados.reembolsados} pedido(s) expiraram. ${dados.totalReembolsado.toFixed(2)} MT foram devolvidos ao seu saldo.`), 500);
           }
         }
-      } catch (err) {
-        console.warn('Aviso: Não foi possível verificar pedidos expirados.');
-      }
+      } catch (err) { console.warn(err); }
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('nome_completo, saldo, currency')
-        .eq('id', userId)
-        .single();
-
+      const { data: profile } = await supabase.from('profiles').select('nome_completo, saldo, currency').eq('id', userId).single();
       if (profile) {
         setNome(profile.nome_completo || 'Utilizador');
         setSaldo(parseFloat(profile.saldo) || 0);
@@ -129,9 +102,9 @@ export default function DashboardPage() {
       <div className="bg-gradient-to-r from-purple-600 to-blue-500 rounded-2xl p-6 text-white shadow-lg mb-8">
         <p className="text-purple-100 text-sm font-medium mb-1">Saldo Disponível</p>
         <div className="flex justify-between items-center">
-          <h2 className="text-4xl font-bold">{formatarMoeda(saldo, currency)}</h2>
+          <h2 className="text-3xl sm:text-4xl font-bold">{formatarMoeda(saldo, currency)}</h2>
           <Link href="/saldo" className="bg-white/20 hover:bg-white/30 transition-colors px-4 py-2 rounded-lg text-sm font-semibold backdrop-blur-sm">
-            + Adicionar Saldo
+            + Adicionar
           </Link>
         </div>
       </div>
@@ -140,23 +113,27 @@ export default function DashboardPage() {
       <div className="grid grid-cols-2 gap-4 mb-8">
         <Link href="/servicos" className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-col items-center justify-center hover:border-purple-400 transition-all">
           <span className="text-2xl mb-2">🛒</span>
-          <span className="font-semibold text-gray-800">Obter Número</span>
+          <span className="font-semibold text-gray-800 text-center text-sm sm:text-base">Obter Número</span>
         </Link>
         <Link href="/pedidos" className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-col items-center justify-center hover:border-purple-400 transition-all">
           <span className="text-2xl mb-2">📋</span>
-          <span className="font-semibold text-gray-800">Meus Pedidos</span>
+          <span className="font-semibold text-gray-800 text-center text-sm sm:text-base">Meus Pedidos</span>
         </Link>
       </div>
 
       <h3 className="text-lg font-bold text-gray-900 mb-4">Serviços Populares</h3>
-      <div className="grid grid-cols-2 gap-4 mb-8">
+      
+      {/* CORREÇÃO MOBILE: grid-cols-1 (telemóvel) para sm:grid-cols-2 (PC) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
         {servicosPopulares.map((servico) => (
-          <div key={servico.nome} className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex justify-between items-center">
+          <div key={servico.nome} className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex justify-between items-center w-full">
             <div className="flex items-center gap-3">
               <span className="text-2xl">{servico.icone}</span>
               <span className="font-semibold text-gray-800">{servico.nome}</span>
             </div>
-            <span className="text-sm font-bold text-purple-600">{formatarMoeda(servico.preco, currency)}</span>
+            <span className="text-sm font-bold text-purple-600 whitespace-nowrap ml-2">
+              {formatarMoeda(servico.preco, currency)}
+            </span>
           </div>
         ))}
       </div>

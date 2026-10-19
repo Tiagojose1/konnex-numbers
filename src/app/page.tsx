@@ -29,7 +29,6 @@ export default function LandingPage() {
     const TOTAL_DURATION = LOGO_DURATION + ICON_DURATION;
 
     const transitionTimer = setTimeout(() => setPhase('icon'), LOGO_DURATION);
-
     const t1 = setTimeout(() => setStatusText('A configurar canais de comunicação...'), 8000);
     const t2 = setTimeout(() => setStatusText('A preparar números virtuais...'), 18000);
     const t3 = setTimeout(() => setStatusText('A ativar o canal seguro...'), 28000);
@@ -57,51 +56,34 @@ export default function LandingPage() {
     };
   }, [router]);
 
-  // ===== SPLASH SCREEN (Fundo Gradiente) =====
+  // ===== SPLASH SCREEN =====
   if (phase === 'logo' || phase === 'icon' || phase === 'fading') {
     return (
       <div className={`min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden bg-gradient-to-br from-[#8a00e6] via-[#0044ff] to-[#00ffaa] ${phase === 'fading' ? 'fade-out' : ''}`}>
         
         {phase === 'logo' && (
           <div className="flex flex-col items-center">
-            <img 
-              src="/logo.jpeg" 
-              alt="Konnex Numbers" 
-              className="w-80 h-auto logo-fade-in drop-shadow-2xl rounded-3xl mix-blend-screen"
-            />
+            <img src="/logo.jpeg" alt="Konnex Numbers" className="w-80 h-auto logo-fade-in drop-shadow-2xl rounded-3xl mix-blend-screen" />
           </div>
         )}
 
         {(phase === 'icon' || phase === 'fading') && (
           <div className="flex flex-col items-center">
-            <img 
-              src="/incon-k.jpeg" 
-              alt="Konnex Numbers" 
-              className="w-40 h-40 rounded-3xl shadow-2xl logo-fade-in object-contain drop-shadow-2xl mix-blend-screen"
-            />
+            <img src="/incon-k.jpeg" alt="Konnex Numbers" className="w-40 h-40 rounded-3xl shadow-2xl logo-fade-in object-contain drop-shadow-2xl mix-blend-screen" />
             <h1 className="text-white text-xl font-bold mt-6 logo-fade-in drop-shadow-md">Konnex Numbers</h1>
           </div>
         )}
 
         <div className="absolute bottom-16 w-4/5 max-w-md">
           <div className="w-full h-1.5 bg-black/30 rounded-full overflow-hidden mb-3 backdrop-blur-sm">
-            <div 
-              className="h-full rounded-full transition-all duration-100 ease-linear shadow-[0_0_10px_rgba(255,255,255,0.5)]"
-              style={{ 
-                width: `${progress}%`,
-                background: 'linear-gradient(90deg, #ffffff 0%, #a855f7 50%, #22d3ee 100%)'
-              }}
-            ></div>
+            <div className="h-full rounded-full transition-all duration-100 ease-linear shadow-[0_0_10px_rgba(255,255,255,0.5)]" style={{ width: `${progress}%`, background: 'linear-gradient(90deg, #ffffff 0%, #a855f7 50%, #22d3ee 100%)' }}></div>
           </div>
-          <p className="text-white text-sm text-center font-medium drop-shadow-md">
-            {statusText}
-          </p>
+          <p className="text-white text-sm text-center font-medium drop-shadow-md">{statusText}</p>
         </div>
       </div>
     );
   }
 
-  // ===== LOADING =====
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -113,6 +95,8 @@ export default function LandingPage() {
   // ===== LANDING PAGE =====
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
+      
+      {/* Menu Superior (Únicos botões de ação) */}
       <nav className="bg-white/80 backdrop-blur-md border-b border-gray-200 fixed w-full top-0 z-50">
         <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
           <img src="/logo.jpeg" alt="Konnex Numbers" className="h-12 rounded-lg object-contain" />
@@ -127,34 +111,28 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      <section className="pt-32 pb-20 px-6 max-w-4xl mx-auto text-center">
+      {/* Hero Section (Texto reduzido e sem botões grandes) */}
+      <section className="pt-40 pb-20 px-6 max-w-3xl mx-auto text-center">
         <span className="bg-purple-100 text-purple-700 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">
           Números Virtuais
         </span>
-        <h2 className="text-5xl md:text-6xl font-extrabold text-gray-900 mt-6 mb-6 leading-tight">
+        <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mt-6 mb-6 leading-tight">
           Receba SMS de Ativação <br />
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-blue-500">
             sem Complicações.
           </span>
         </h2>
-        <p className="text-xl text-gray-500 mb-10 max-w-2xl mx-auto leading-relaxed">
+        <p className="text-lg text-gray-500 max-w-2xl mx-auto leading-relaxed">
           Use números virtuais para WhatsApp, Telegram, Google e centenas de outros serviços. 
           Rápido, seguro e sem precisar de chip físico.
         </p>
-        <div className="flex flex-col sm:flex-row justify-center gap-4">
-          <Link href="/registo" className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 px-8 rounded-xl text-lg transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1">
-            CRIAR CONTA GRÁTIS
-          </Link>
-          <Link href="/login" className="bg-white hover:bg-gray-50 text-gray-800 font-bold py-4 px-8 rounded-xl text-lg border border-gray-200 transition-all shadow-sm hover:shadow-md">
-            JÁ TENHO CONTA
-          </Link>
-        </div>
       </section>
 
+      {/* Como Funciona */}
       <section className="bg-white py-24 border-t border-gray-100">
         <div className="max-w-6xl mx-auto px-6">
           <div className="text-center mb-16">
-            <h3 className="text-3xl font-bold text-gray-900 mb-4">Como Funciona</h3>
+            <h3 className="text-2xl font-bold text-gray-900 mb-4">Como Funciona</h3>
             <p className="text-gray-500">Três passos simples para obter o seu número.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -166,14 +144,15 @@ export default function LandingPage() {
               <div key={index} className="bg-gray-50 p-8 rounded-2xl border border-gray-100 hover:shadow-lg transition-shadow">
                 <div className="text-4xl mb-4">{item.icone}</div>
                 <div className="text-sm font-bold text-purple-600 mb-2">PASSO {item.passo}</div>
-                <h4 className="font-bold text-gray-900 text-xl mb-3">{item.titulo}</h4>
-                <p className="text-gray-500 leading-relaxed">{item.desc}</p>
+                <h4 className="font-bold text-gray-900 text-lg mb-3">{item.titulo}</h4>
+                <p className="text-gray-500 text-sm leading-relaxed">{item.desc}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
+      {/* Rodapé */}
       <footer className="bg-gray-900 text-gray-400 py-12 text-center">
         <div className="max-w-4xl mx-auto px-6">
           <img src="/logo.jpeg" alt="Konnex Numbers" className="h-16 mx-auto mb-4 brightness-0 invert rounded-lg object-contain" />
