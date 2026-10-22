@@ -53,7 +53,7 @@ export default function ServicosPage() {
     const paisInfo = getCountry(paisId);
     if (!paisInfo) return;
 
-    const valorEmMZN = converterParaMZN(precoInfo.price, paisInfo.currency);
+    const valorEmMZN = converterParaMZN(precoInfo.price || 0, paisInfo.currency);
 
     const resposta = await fetch('/api/comprar', {
       method: 'POST',

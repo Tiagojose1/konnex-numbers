@@ -1,4 +1,4 @@
-export const runtime = 'nodejs'; // Importante para o SDK da M-Pesa funcionar
+export const runtime = 'nodejs';
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
@@ -13,10 +13,8 @@ export async function POST(request: Request) {
   try {
     const { userId, valor, metodo, telefone } = await request.json();
 
-    // 1. Formatar o número (adiciona 258 se não tiver)
     const numeroFormatado = telefone.startsWith('258') ? telefone : `258${telefone}`;
 
-    // 2. Criar transação pendente no Supabase
     const { data: transacao, error } = await supabaseAdmin
       .from('transactions')
       .insert({ user_id: userId, tipo: 'Recarga', valor: parseFloat(valor), metodo: metodo || 'M-Pesa', status: 'Pendente' })
@@ -24,30 +22,26 @@ export async function POST(request: Request) {
 
     if (error) throw error;
 
-        // 3. CONFIGURAÇÃO DA M-PESA
     const mpesa = new MpesaService({
-      // A sua chave da API tem de ficar DENTRO das aspas simples:
       apiKey: 'gxS17i8BNYIE99jzago7NTG119W4ECD1', 
-      
-      // A chave pública também tem de ficar DENTRO das aspas simples (numa linha só):
       publicKey: 'MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAmptSWqV7cGUUJJhUBxsMLonux24u+FoTlrb+4Kgc6092JIszmI1QUoMohaDDXSVueXx6IXwYGsjjWY32HGXj1iQhkALXfObJ4DqXn5h6E8y5/xQYNAyd5bpN5Z8r892B6toGzZQVB7qtebH4apDjmvTi5FGZVjVYxalyyQkj4uQbbRQjgCkubSi45Xl4CGtLqZztsKssWz3mcKncgTnq3DHGYYEYiKq0xIj100LGbnvNz20Sgqmw/cH+Bua4GJsWYLEqf/h/yiMgiBbxFxsnwZl0im5vXDlwKPw+QnO2fscDhxZFAwV06bgG0oEoWm9FnjMsfvwm0rUNYFlZ+TOtCEhmhtFp+Tsx9jPCuOd5h2emGdSKD8A6jtwhNa7oQ8RtLEEqwAn44orENa1ibOkxMiiiFpmmJkwgZPOG/zMCjXIrrhDWTDUOZaPx/lEQoInJoE2i43VN/HTGCCw8dKQAwg0jsEXau5ixD0GUothqvuX3B9taoeoFAIvUPEq35YulprMM7ThdKodSHvhnwKG82dCsodRwY428kg2xM/UjiTENog4B6zzZfPhMxFlOSFX4MnrqkAS+8Jamhy1GgoHkEMrsT5+/ofjCx0HjKbT5NuA2V/lmzgJLl3jIERadLzuTYnKGWxVJcGLkWXlEPYLbiaKzbJb2sYxt+Kt5OxQqC1MCAwEAAQ==', 
-      
       serviceProviderCode: '171717',
       origin: 'developer.mpesa.vm.co.mz',
       env: 'sandbox',
     });
 
-    // 4. Chamar a M-Pesa
     try {
       console.log("A enviar pedido para a M-Pesa...");
+      
+      // AQUI ESTÁ A CORREÇÃO: O 'as any' no final do objeto
       const resposta = await mpesa.c2b({
-        amount: Math.round(parseFloat(valor)), // Arredondar para não dar erro com decimais
+        amount: Math.round(parseFloat(valor)),
         number: numeroFormatado, 
         transactionReference: transacao.id,
         thirdPartyReference: transacao.id,
         serviceProviderCode: '171717',
         origin: 'developer.mpesa.vm.co.mz'
-      });
+      } as any);
 
       console.log("Resposta da M-Pesa:", resposta);
 

@@ -26,6 +26,9 @@ export async function POST(request: Request) {
           .select('saldo')
           .eq('id', transacao.user_id)
           .single();
+          if (!profile) {
+  return NextResponse.json({ error: 'Utilizador não encontrado.' }, { status: 404 });
+}
 
         const novoSaldo = parseFloat(profile.saldo) + parseFloat(transacao.valor);
         await supabaseAdmin.from('profiles').update({ saldo: novoSaldo }).eq('id', transacao.user_id);
