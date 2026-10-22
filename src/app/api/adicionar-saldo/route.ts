@@ -1,6 +1,8 @@
-// src/app/api/adicionar-saldo/route.ts
+export const runtime = 'nodejs'; // Importante para o SDK da M-Pesa funcionar
+
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { MpesaService } from 'mpesa-mz-sdk'; 
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -9,61 +11,61 @@ const supabaseAdmin = createClient(
 
 export async function POST(request: Request) {
   try {
-    const { userId, valor, metodo } = await request.json();
-    console.log('--- NOVA RECARGA ---');
-    console.log('Dados:', { userId, valor, metodo });
+    const { userId, valor, metodo, telefone } = await request.json();
 
-    // 1. Buscar o perfil do utilizador
-    const { data: profile, error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .select('saldo')
-      .eq('id', userId)
-      .single();
+    // 1. Formatar o número (adiciona 258 se não tiver)
+    const numeroFormatado = telefone.startsWith('258') ? telefone : `258${telefone}`;
 
-    if (profileError || !profile) {
-      return NextResponse.json({ error: 'Utilizador não encontrado.' }, { status: 404 });
-    }
+    // 2. Criar transação pendente no Supabase
+    const { data: transacao, error } = await supabaseAdmin
+      .from('transactions')
+      .insert({ user_id: userId, tipo: 'Recarga', valor: parseFloat(valor), metodo: metodo || 'M-Pesa', status: 'Pendente' })
+      .select().single();
 
-    // 2. Converter e somar (IMPORTANTE: sempre parseFloat!)
-    const saldoAtual = parseFloat(profile.saldo) || 0;
-    const valorRecarga = parseFloat(valor) || 0;
-    const novoSaldo = saldoAtual + valorRecarga;
+    if (error) throw error;
 
-    console.log(`Saldo: ${saldoAtual} + ${valorRecarga} = ${novoSaldo}`);
-
-    // 3. Atualizar o saldo na base de dados
-    const { error: updateError } = await supabaseAdmin
-      .from('profiles')
-      .update({ saldo: novoSaldo })
-      .eq('id', userId);
-
-    if (updateError) {
-      console.error('Erro ao atualizar saldo:', updateError);
-      return NextResponse.json({ error: 'Erro ao atualizar saldo.' }, { status: 500 });
-    }
-
-    // 4. Registar a transação no histórico
-    const { error: transacaoError } = await supabaseAdmin.from('transactions').insert({
-      user_id: userId,
-      tipo: 'Recarga',
-      valor: valorRecarga,
-      metodo: metodo,
-      status: 'Aprovado'
+        // 3. CONFIGURAÇÃO DA M-PESA
+    const mpesa = new MpesaService({
+      // A sua chave da API tem de ficar DENTRO das aspas simples:
+      apiKey: 'gxS17i8BNYIE99jzago7NTG119W4ECD1', 
+      
+      // A chave pública também tem de ficar DENTRO das aspas simples (numa linha só):
+      publicKey: 'MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAmptSWqV7cGUUJJhUBxsMLonux24u+FoTlrb+4Kgc6092JIszmI1QUoMohaDDXSVueXx6IXwYGsjjWY32HGXj1iQhkALXfObJ4DqXn5h6E8y5/xQYNAyd5bpN5Z8r892B6toGzZQVB7qtebH4apDjmvTi5FGZVjVYxalyyQkj4uQbbRQjgCkubSi45Xl4CGtLqZztsKssWz3mcKncgTnq3DHGYYEYiKq0xIj100LGbnvNz20Sgqmw/cH+Bua4GJsWYLEqf/h/yiMgiBbxFxsnwZl0im5vXDlwKPw+QnO2fscDhxZFAwV06bgG0oEoWm9FnjMsfvwm0rUNYFlZ+TOtCEhmhtFp+Tsx9jPCuOd5h2emGdSKD8A6jtwhNa7oQ8RtLEEqwAn44orENa1ibOkxMiiiFpmmJkwgZPOG/zMCjXIrrhDWTDUOZaPx/lEQoInJoE2i43VN/HTGCCw8dKQAwg0jsEXau5ixD0GUothqvuX3B9taoeoFAIvUPEq35YulprMM7ThdKodSHvhnwKG82dCsodRwY428kg2xM/UjiTENog4B6zzZfPhMxFlOSFX4MnrqkAS+8Jamhy1GgoHkEMrsT5+/ofjCx0HjKbT5NuA2V/lmzgJLl3jIERadLzuTYnKGWxVJcGLkWXlEPYLbiaKzbJb2sYxt+Kt5OxQqC1MCAwEAAQ==', 
+      
+      serviceProviderCode: '171717',
+      origin: 'developer.mpesa.vm.co.mz',
+      env: 'sandbox',
     });
 
-    if (transacaoError) {
-      console.error('Erro ao registar transação:', transacaoError);
-    }
+    // 4. Chamar a M-Pesa
+    try {
+      console.log("A enviar pedido para a M-Pesa...");
+      const resposta = await mpesa.c2b({
+        amount: Math.round(parseFloat(valor)), // Arredondar para não dar erro com decimais
+        number: numeroFormatado, 
+        transactionReference: transacao.id,
+        thirdPartyReference: transacao.id,
+        serviceProviderCode: '171717',
+        origin: 'developer.mpesa.vm.co.mz'
+      });
 
-    console.log('--- RECARGA CONCLUÍDA ---');
-    return NextResponse.json({
-      sucesso: true,
-      mensagem: `Recarga de ${valorRecarga.toFixed(2)} MT aprovada!`,
-      novoSaldo: novoSaldo
-    });
+      console.log("Resposta da M-Pesa:", resposta);
+
+      return NextResponse.json({ 
+        sucesso: true, 
+        mensagem: 'Pedido enviado! Verifique o seu telemóvel e insira o PIN.',
+        transacao_id: transacao.id 
+      });
+
+    } catch (mpesaError: any) {
+      console.error('--- ERRO DA M-PESA ---');
+      console.error(mpesaError); 
+      await supabaseAdmin.from('transactions').update({ status: 'Falhado' }).eq('id', transacao.id);
+      return NextResponse.json({ error: 'Erro M-Pesa: ' + (mpesaError.message || 'Erro') }, { status: 400 });
+    }
 
   } catch (error) {
-    console.error('Erro no servidor:', error);
+    console.error('--- ERRO GERAL ---', error);
     return NextResponse.json({ error: 'Erro interno.' }, { status: 500 });
   }
 }

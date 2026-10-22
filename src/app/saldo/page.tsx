@@ -66,8 +66,6 @@ export default function AdicionarSaldoPage() {
       return;
     }
 
-    // CONVERSÃO: O valor que o utilizador escolheu está na moeda local
-    // Convertemos para MZN antes de enviar para a base de dados
     const valorEmMZN = converterParaMZN(valor, currency);
 
     try {
@@ -76,16 +74,26 @@ export default function AdicionarSaldoPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           userId: session.user.id, 
-          valor: valorEmMZN, // Enviamos em MZN
-          metodo: metodo 
+          valor: valorEmMZN, 
+          metodo: metodo,
+          telefone: telefone // <-- ESTA LINHA ESTAVA EM FALTA!
         }),
       });
+      
       const dados = await resposta.json();
+      
       if (dados.error) {
         setMensagem(`Erro: ${dados.error}`);
       } else {
-        setMensagem('');
-        setDepositoConfirmado(valor); // Mostra o valor original que o utilizador escolheu
+        // Se for M-Pesa ou e-Mola, avisamos para ir ao telemóvel
+        if (metodo === 'M-Pesa' || metodo === 'e-Mola') {
+          setMensagem(dados.mensagem); // Ex: "Pedido enviado! Verifique o seu telemóvel e insira o PIN."
+          // NÃO mostramos o ecrã verde ainda. O dinheiro só entra depois do PIN.
+        } else {
+          // Se for Cartão de Crédito (que ainda é simulação)
+          setMensagem('');
+          setDepositoConfirmado(valor);
+        }
       }
     } catch (error) {
       setMensagem('Erro de comunicação. Tente novamente.');

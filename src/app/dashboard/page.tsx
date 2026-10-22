@@ -9,8 +9,9 @@ import { formatarMoeda } from '@/lib/currencies';
 const servicosPopulares = [
   { nome: 'WhatsApp', preco: 3.85, icone: '💬' },
   { nome: 'Telegram', preco: 1.93, icone: '✈️' },
-  { nome: 'Facebook', preco: 0.39, icone: '📘' },
   { nome: 'Instagram', preco: 0.77, icone: '📷' },
+  { nome: 'Facebook', preco: 0.39, icone: '📘' },
+  { nome: 'TikTok', preco: 0.50, icone: '🎵' },
 ];
 
 export default function DashboardPage() {
@@ -22,57 +23,17 @@ export default function DashboardPage() {
   useEffect(() => {
     const carregarDados = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      
       if (!session) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        const { data: { session: retrySession } } = await supabase.auth.getSession();
-        if (!retrySession) {
-          window.location.href = '/login';
-          return;
-        }
-        const userId = retrySession.user.id;
-        
-        try {
-          const resposta = await fetch('/api/verificar-expirados', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId }),
-          });
-          if (resposta.ok) {
-            const dados = await resposta.json();
-            if (dados.reembolsados > 0) {
-              setTimeout(() => alert(`⏰ ${dados.reembolsados} pedido(s) expiraram. ${dados.totalReembolsado.toFixed(2)} MT foram devolvidos ao seu saldo.`), 500);
-            }
-          }
-        } catch (err) { console.warn(err); }
-
-        const { data: profile } = await supabase.from('profiles').select('nome_completo, saldo, currency').eq('id', userId).single();
-        if (profile) {
-          setNome(profile.nome_completo || 'Utilizador');
-          setSaldo(parseFloat(profile.saldo) || 0);
-          setCurrency(profile.currency || 'MZN');
-        }
-        setLoading(false);
+        window.location.href = '/login';
         return;
       }
 
-      const userId = session.user.id;
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('nome_completo, saldo, currency')
+        .eq('id', session.user.id)
+        .single();
 
-      try {
-        const resposta = await fetch('/api/verificar-expirados', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId }),
-        });
-        if (resposta.ok) {
-          const dados = await resposta.json();
-          if (dados.reembolsados > 0) {
-            setTimeout(() => alert(`⏰ ${dados.reembolsados} pedido(s) expiraram. ${dados.totalReembolsado.toFixed(2)} MT foram devolvidos ao seu saldo.`), 500);
-          }
-        }
-      } catch (err) { console.warn(err); }
-
-      const { data: profile } = await supabase.from('profiles').select('nome_completo, saldo, currency').eq('id', userId).single();
       if (profile) {
         setNome(profile.nome_completo || 'Utilizador');
         setSaldo(parseFloat(profile.saldo) || 0);
@@ -80,76 +41,105 @@ export default function DashboardPage() {
       }
       setLoading(false);
     };
-
     carregarDados();
   }, []);
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <p className="text-purple-600 font-medium animate-pulse">A carregar o seu painel...</p>
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <p className="text-purple-600 font-medium animate-pulse">A carregar...</p>
       </div>
     );
   }
 
   return (
-    <div className="p-8 max-w-4xl mx-auto min-h-screen bg-gray-50 pb-24">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Olá, {nome} 👋</h1>
-        <p className="text-gray-500">Bem-vindo de volta ao Konnex Numbers.</p>
-      </div>
-
-      <div className="bg-gradient-to-r from-purple-600 to-blue-500 rounded-2xl p-6 text-white shadow-lg mb-8">
-        <p className="text-purple-100 text-sm font-medium mb-1">Saldo Disponível</p>
-        <div className="flex justify-between items-center">
-          <h2 className="text-3xl sm:text-4xl font-bold">{formatarMoeda(saldo, currency)}</h2>
-          <Link href="/saldo" className="bg-white/20 hover:bg-white/30 transition-colors px-4 py-2 rounded-lg text-sm font-semibold backdrop-blur-sm">
-            + Adicionar
+    <div className="min-h-screen bg-slate-50 pb-24">
+      
+      {/* ===== CABEÇALHO SUPERIOR (ESTILO YELLOWBET) ===== */}
+      <header className="bg-slate-900 sticky top-0 z-50 px-4 py-3 flex items-center justify-between shadow-md">
+        <img src="/logo.jpeg" alt="Konnex" className="h-8 rounded object-contain bg-white p-0.5" />
+        
+        <div className="flex items-center gap-3">
+          <button className="text-white relative">
+            <span className="text-xl">🔔</span>
+            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold">1</span>
+          </button>
+          
+          <Link href="/saldo" className="bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold py-1.5 px-4 rounded-md text-sm transition-colors shadow-sm">
+            Depositar
+          </Link>
+          
+          <Link href="/perfil" className="w-8 h-8 bg-slate-700 rounded-full flex items-center justify-center text-white text-sm font-bold border border-slate-600">
+            {nome.charAt(0).toUpperCase()}
           </Link>
         </div>
-      </div>
+      </header>
 
-      <h3 className="text-lg font-bold text-gray-900 mb-4">Acesso Rápido</h3>
-      <div className="grid grid-cols-2 gap-4 mb-8">
-        <Link href="/servicos" className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-col items-center justify-center hover:border-purple-400 transition-all">
-          <span className="text-2xl mb-2">🛒</span>
-          <span className="font-semibold text-gray-800 text-center text-sm sm:text-base">Obter Número</span>
-        </Link>
-        <Link href="/pedidos" className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-col items-center justify-center hover:border-purple-400 transition-all">
-          <span className="text-2xl mb-2">📋</span>
-          <span className="font-semibold text-gray-800 text-center text-sm sm:text-base">Meus Pedidos</span>
-        </Link>
-      </div>
+      <div className="p-4 max-w-4xl mx-auto">
+        
+        {/* ===== SAUDAÇÃO E SALDO ===== */}
+        <div className="mb-6">
+          <h1 className="text-xl font-bold text-slate-800">Olá, {nome.split(' ')[0]} 👋</h1>
+          <p className="text-slate-500 text-sm">Bem-vindo de volta.</p>
+        </div>
 
-      <h3 className="text-lg font-bold text-gray-900 mb-4">Serviços Populares</h3>
-      
-      {/* CORREÇÃO MOBILE: grid-cols-1 (telemóvel) para sm:grid-cols-2 (PC) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-        {servicosPopulares.map((servico) => (
-          <div key={servico.nome} className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex justify-between items-center w-full">
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">{servico.icone}</span>
-              <span className="font-semibold text-gray-800">{servico.nome}</span>
-            </div>
-            <span className="text-sm font-bold text-purple-600 whitespace-nowrap ml-2">
-              {formatarMoeda(servico.preco, currency)}
-            </span>
+        <div className="bg-gradient-to-r from-purple-700 to-blue-600 rounded-2xl p-6 text-white shadow-lg mb-8 relative overflow-hidden">
+          <div className="relative z-10">
+            <p className="text-purple-100 text-xs font-medium mb-1">Saldo Disponível</p>
+            <h2 className="text-4xl font-bold">{formatarMoeda(saldo, currency)}</h2>
           </div>
-        ))}
+          {/* Elemento decorativo de fundo */}
+          <div className="absolute -right-4 -bottom-4 text-7xl opacity-20">💳</div>
+        </div>
+
+        {/* ===== ACESSO RÁPIDO (SCROLL HORIZONTAL) ===== */}
+        <h3 className="text-sm font-bold text-slate-800 mb-3 uppercase tracking-wider">Acesso Rápido</h3>
+        <div className="flex overflow-x-auto gap-3 pb-4 scrollbar-hide -mx-4 px-4">
+          <Link href="/servicos" className="bg-white min-w-[120px] p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col items-center justify-center hover:border-purple-400 transition-all">
+            <span className="text-3xl mb-2">🛒</span>
+            <span className="font-semibold text-slate-700 text-xs text-center">Comprar Número</span>
+          </Link>
+          <Link href="/pedidos" className="bg-white min-w-[120px] p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col items-center justify-center hover:border-purple-400 transition-all">
+            <span className="text-3xl mb-2">📋</span>
+            <span className="font-semibold text-slate-700 text-xs text-center">Meus Pedidos</span>
+          </Link>
+          <Link href="/historico" className="bg-white min-w-[120px] p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col items-center justify-center hover:border-purple-400 transition-all">
+            <span className="text-3xl mb-2">🧾</span>
+            <span className="font-semibold text-slate-700 text-xs text-center">Histórico</span>
+          </Link>
+          <Link href="/informacoes" className="bg-white min-w-[120px] p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col items-center justify-center hover:border-purple-400 transition-all">
+            <span className="text-3xl mb-2">🎧</span>
+            <span className="font-semibold text-slate-700 text-xs text-center">Suporte</span>
+          </Link>
+        </div>
+
+        {/* ===== SERVIÇOS POPULARES (SCROLL HORIZONTAL) ===== */}
+        <h3 className="text-sm font-bold text-slate-800 mb-3 mt-4 uppercase tracking-wider">Serviços Populares</h3>
+        <div className="flex overflow-x-auto gap-3 pb-4 scrollbar-hide -mx-4 px-4">
+          {servicosPopulares.map((servico) => (
+            <Link href="/servicos" key={servico.nome} className="bg-white min-w-[100px] p-3 rounded-xl shadow-sm border border-slate-200 flex flex-col items-center justify-center">
+              <span className="text-3xl mb-2">{servico.icone}</span>
+              <span className="font-semibold text-slate-800 text-xs">{servico.nome}</span>
+              <span className="text-[10px] font-bold text-purple-600 mt-1">{formatarMoeda(servico.preco, currency)}</span>
+            </Link>
+          ))}
+        </div>
+
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around py-3 px-4 shadow-lg md:hidden">
-        <Link href="/dashboard" className="flex flex-col items-center text-purple-600">
-          <span className="text-xl">🏠</span><span className="text-xs font-medium mt-1">Início</span>
+      {/* ===== NAVEGAÇÃO INFERIOR ===== */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex justify-around py-2 px-2 shadow-lg z-50">
+        <Link href="/dashboard" className="flex flex-col items-center text-purple-600 p-2">
+          <span className="text-xl">🏠</span><span className="text-[10px] font-bold mt-1">Início</span>
         </Link>
-        <Link href="/servicos" className="flex flex-col items-center text-gray-400 hover:text-purple-600 transition-colors">
-          <span className="text-xl">🌐</span><span className="text-xs font-medium mt-1">Serviços</span>
+        <Link href="/servicos" className="flex flex-col items-center text-slate-400 hover:text-purple-600 transition-colors p-2">
+          <span className="text-xl">🌐</span><span className="text-[10px] font-medium mt-1">Serviços</span>
         </Link>
-        <Link href="/saldo" className="flex flex-col items-center text-gray-400 hover:text-purple-600 transition-colors">
-          <span className="text-xl">💰</span><span className="text-xs font-medium mt-1">Saldo</span>
+        <Link href="/saldo" className="flex flex-col items-center text-slate-400 hover:text-purple-600 transition-colors p-2">
+          <span className="text-xl">💰</span><span className="text-[10px] font-medium mt-1">Saldo</span>
         </Link>
-        <Link href="/perfil" className="flex flex-col items-center text-gray-400 hover:text-purple-600 transition-colors">
-          <span className="text-xl">👤</span><span className="text-xs font-medium mt-1">Perfil</span>
+        <Link href="/perfil" className="flex flex-col items-center text-slate-400 hover:text-purple-600 transition-colors p-2">
+          <span className="text-xl">👤</span><span className="text-[10px] font-medium mt-1">Perfil</span>
         </Link>
       </div>
     </div>
