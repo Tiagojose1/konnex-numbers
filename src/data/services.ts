@@ -7,124 +7,193 @@ export interface Service {
   logo: string;
 }
 
+const service = (
+  id: string,
+  name: string,
+  category: string,
+  logoId = id,
+): Service => ({
+  id,
+  name,
+  category,
+  logo: `https://cdn.simpleicons.org/${logoId}`,
+});
+
 export const services: Service[] = [
-  // ─── Redes sociais / comunicação ───
-  { id: 'whatsapp',     name: 'WhatsApp',              category: 'social',    logo: '/logos/whatsapp.svg' },
-  { id: 'telegram',     name: 'Telegram',              category: 'social',    logo: '/logos/telegram.svg' },
-  { id: 'facebook',     name: 'Facebook',              category: 'social',    logo: '/logos/facebook.svg' },
-  { id: 'instagram',    name: 'Instagram & Threads',   category: 'social',    logo: '/logos/instagram.svg' },
-  { id: 'tiktok',       name: 'TikTok / Douyin',       category: 'social',    logo: '/logos/tiktok.svg' },
-  { id: 'discord',      name: 'Discord',               category: 'social',    logo: '/logos/discord.svg' },
-  { id: 'snapchat',     name: 'Snapchat',              category: 'social',    logo: '/logos/snapchat.svg' },
-  { id: 'viber',        name: 'Viber',                 category: 'social',    logo: '/logos/viber.svg' },
-  { id: 'wechat',       name: 'WeChat',                category: 'social',    logo: '/logos/wechat.svg' },
-  { id: 'line',         name: 'LINE Messenger',        category: 'social',    logo: '/logos/line.svg' },
-  { id: 'kakaotalk',    name: 'KakaoTalk',             category: 'social',    logo: '/logos/kakaotalk.svg' },
-  { id: 'imo',          name: 'imo',                   category: 'social',    logo: '/logos/imo.svg' },
-  { id: 'zalo',         name: 'Zalo',                  category: 'social',    logo: '/logos/zalo.svg' },
-  { id: 'linkedin',     name: 'LinkedIn',              category: 'social',    logo: '/logos/linkedin.svg' },
-  { id: 'twitter',      name: 'Twitter / X',           category: 'social',    logo: '/logos/twitter.svg' },
-  { id: 'googlechat',   name: 'Google Chat',           category: 'social',    logo: '/logos/googlechat.svg' },
+  // ─── REDES SOCIAIS E MENSAGENS ───
+  service('whatsapp', 'WhatsApp', 'social'),
+  service('telegram', 'Telegram', 'social'),
+  service('facebook', 'Facebook', 'social'),
+  service('instagram', 'Instagram', 'social'),
+  service('tiktok', 'TikTok', 'social'),
+  service('discord', 'Discord', 'social'),
+  service('snapchat', 'Snapchat', 'social'),
+  service('twitter', 'X (Twitter)', 'social', 'x'),
+  service('viber', 'Viber', 'social'),
+  service('wechat', 'WeChat', 'social'),
+  service('line', 'LINE', 'social'),
+  service('kakaotalk', 'KakaoTalk', 'social'),
+  service('imo', 'imo', 'social'),
+  service('zalo', 'Zalo', 'social'),
+  service('linkedin', 'LinkedIn', 'social'),
+  service('googlechat', 'Google Chat', 'social'),
+  service('googlemessenger', 'Google Messenger', 'social'),
+  service('vk', 'VK', 'social'),
+  service('yalla', 'Yalla', 'social'),
+  service('soulapp', 'Soul App', 'social'),
+  service('redbook', 'RED / Xiaohongshu', 'social'),
+  service('tencentqq', 'Tencent QQ', 'social'),
+  service('bigo', 'BIGO LIVE', 'social'),
 
-  // ─── Google / Microsoft / Apple ───
-  { id: 'google',       name: 'Google / YouTube / Gmail', category: 'other',  logo: '/logos/google.svg' },
-  { id: 'microsoft',    name: 'Microsoft',             category: 'other',     logo: '/logos/microsoft.svg' },
-  { id: 'apple',        name: 'Apple',                 category: 'other',     logo: '/logos/apple.svg' },
+  // ─── TECNOLOGIA E CONTAS ───
+  service('google', 'Google / Gmail / YouTube', 'technology'),
+  service('microsoft', 'Microsoft', 'technology'),
+  service('apple', 'Apple', 'technology'),
+  service('yahoo', 'Yahoo', 'technology'),
+  service('aol', 'AOL', 'technology'),
+  service('mailru', 'Mail.ru', 'technology', 'maildotru'),
+  service('yandex', 'Yandex', 'technology'),
+  service('baidu', 'Baidu', 'technology'),
+  service('naver', 'NAVER', 'technology'),
+  service('zoho', 'Zoho', 'technology'),
+  service('openai', 'OpenAI / ChatGPT', 'technology'),
 
-  // ─── Bancos / Finanças ───
-  { id: 'nubank',       name: 'Nubank',                category: 'bank',      logo: '/logos/nubank.svg' },
-  { id: 'itau',         name: 'Itaú Unibanco',         category: 'bank',      logo: '/logos/itau.svg' },
-  { id: 'bradesco',     name: 'Bradesco',              category: 'bank',      logo: '/logos/bradesco.svg' },
-  { id: 'bancodobrasil',name: 'Banco do Brasil',       category: 'bank',      logo: '/logos/bancodobrasil.svg' },
-  { id: 'caixa',        name: 'Caixa Econômica',       category: 'bank',      logo: '/logos/caixa.svg' },
-  { id: 'santander_br', name: 'Santander Brasil',      category: 'bank',      logo: '/logos/santander.svg' },
-  { id: 'inter',        name: 'Banco Inter',           category: 'bank',      logo: '/logos/inter.svg' },
-  { id: 'c6bank',       name: 'C6 Bank',               category: 'bank',      logo: '/logos/c6bank.svg' },
-  { id: 'picpay',       name: 'PicPay',                category: 'bank',      logo: '/logos/picpay.svg' },
-  { id: 'pagbank',      name: 'PagBank',               category: 'bank',      logo: '/logos/pagbank.svg' },
-  { id: 'mercadopago',  name: 'Mercado Pago',          category: 'bank',      logo: '/logos/mercadopago.svg' },
-  { id: 'bci',          name: 'BCI',                   category: 'bank',      logo: '/logos/bci.svg' },
-  { id: 'bim',          name: 'BIM',                   category: 'bank',      logo: '/logos/bim.svg' },
-  { id: 'millenniumbim',name: 'Millennium bim',        category: 'bank',      logo: '/logos/millenniumbim.svg' },
-  { id: 'standardbank_mz', name: 'Standard Bank',      category: 'bank',      logo: '/logos/standardbank.svg' },
-  { id: 'absa_mz',      name: 'Absa',                  category: 'bank',      logo: '/logos/absa.svg' },
-  { id: 'bancounico',   name: 'Banco Único',           category: 'bank',      logo: '/logos/bancounico.svg' },
-  { id: 'moza',         name: 'Moza Banco',            category: 'bank',      logo: '/logos/moza.svg' },
-  { id: 'millenniumbcp',name: 'Millennium BCP',        category: 'bank',      logo: '/logos/millenniumbcp.svg' },
-  { id: 'novobanco',    name: 'Novo Banco',            category: 'bank',      logo: '/logos/novobanco.svg' },
-  { id: 'cgd',          name: 'Caixa Geral de Depósitos', category: 'bank',   logo: '/logos/cgd.svg' },
-  { id: 'revolut',      name: 'Revolut',               category: 'bank',      logo: '/logos/revolut.svg' },
-  { id: 'wise',         name: 'Wise',                  category: 'bank',      logo: '/logos/wise.svg' },
-  { id: 'paypal',       name: 'PayPal',                category: 'finance',   logo: '/logos/paypal.svg' },
+  // ─── BANCOS E FINANÇAS (LOCAIS E GLOBAIS) ───
+  // Globais
+  service('wise', 'Wise', 'finance'),
+  service('paypal', 'PayPal', 'finance'),
+  service('coinbase', 'Coinbase', 'finance'),
+  
+  // Brasil
+  service('nubank', 'Nubank', 'bank'),
+  service('itau', 'Itaú Unibanco', 'bank'),
+  service('bradesco', 'Bradesco', 'bank'),
+  service('bancodobrasil', 'Banco do Brasil', 'bank'),
+  service('caixa', 'Caixa Econômica', 'bank'),
+  service('santander_br', 'Santander Brasil', 'bank', 'santander'),
+  service('inter', 'Banco Inter', 'bank'),
+  service('c6bank', 'C6 Bank', 'bank'),
+  service('picpay', 'PicPay', 'bank'),
+  service('pagbank', 'PagBank', 'bank'),
+  service('mercadopago', 'Mercado Pago', 'bank'),
 
-  // ─── Compras ───
-  { id: 'amazon',       name: 'Amazon',                category: 'shopping',  logo: '/logos/amazon.svg' },
-  { id: 'aliexpress',   name: 'AliExpress',            category: 'shopping',  logo: '/logos/aliexpress.svg' },
-  { id: 'shein',        name: 'Shein',                 category: 'shopping',  logo: '/logos/shein.svg' },
-  { id: 'ebay',         name: 'eBay',                  category: 'shopping',  logo: '/logos/ebay.svg' },
-  { id: 'shopee',       name: 'Shopee',                category: 'shopping',  logo: '/logos/shopee.svg' },
-  { id: 'walmart',      name: 'Walmart',               category: 'shopping',  logo: '/logos/walmart.svg' },
-  { id: 'olx',          name: 'OLX',                   category: 'shopping',  logo: '/logos/olx.svg' },
-  { id: 'alibaba',      name: 'Alipay / Alibaba / 1688', category: 'shopping', logo: '/logos/alibaba.svg' },
-  { id: 'jd',           name: 'JD.com',                category: 'shopping',  logo: '/logos/jd.svg' },
+  // Moçambique
+  service('bci', 'BCI', 'bank'),
+  service('bim', 'BIM', 'bank'),
+  service('millenniumbim', 'Millennium bim', 'bank'),
+  service('standardbank_mz', 'Standard Bank', 'bank', 'standardbank'),
+  service('absa_mz', 'Absa', 'bank', 'absa'),
+  service('bancounico', 'Banco Único', 'bank'),
+  service('moza', 'Moza Banco', 'bank'),
 
-  // ─── Jogos ───
-  { id: 'steam',        name: 'Steam',                 category: 'games',     logo: '/logos/steam.svg' },
-  { id: 'roblox',       name: 'Roblox',                category: 'games',     logo: '/logos/roblox.svg' },
-  { id: 'twitch',       name: 'Twitch',                category: 'games',     logo: '/logos/twitch.svg' },
-  { id: 'blizzard',     name: 'Blizzard',              category: 'games',     logo: '/logos/blizzard.svg' },
-  { id: 'ubisoft',      name: 'Ubisoft',               category: 'games',     logo: '/logos/ubisoft.svg' },
-  { id: 'nttgame',      name: 'NTTGame',               category: 'games',     logo: '/logos/nttgame.svg' },
+  // Portugal
+  service('millenniumbcp', 'Millennium BCP', 'bank'),
+  service('novobanco', 'Novo Banco', 'bank'),
+  service('cgd', 'Caixa Geral de Depósitos', 'bank'),
+  service('revolut', 'Revolut', 'bank'),
 
-  // ─── Transporte ───
-  { id: 'uber',         name: 'Uber',                  category: 'transport', logo: '/logos/uber.svg' },
-  { id: 'bolt',         name: 'Bolt',                  category: 'transport', logo: '/logos/bolt.svg' },
-  { id: 'blablacar',    name: 'BlaBlaCar',             category: 'transport', logo: '/logos/blablacar.svg' },
-  { id: 'grab',         name: 'Grab',                  category: 'transport', logo: '/logos/grab.svg' },
-  { id: 'didi',         name: 'DiDi',                  category: 'transport', logo: '/logos/didi.svg' },
-  { id: 'careem',       name: 'Careem',                category: 'transport', logo: '/logos/careem.svg' },
+  // África do Sul (Novos)
+  service('capitec', 'Capitec Bank', 'bank'),
+  service('fnb', 'FNB', 'bank'),
+  service('nedbank', 'Nedbank', 'bank'),
 
-  // ─── Delivery ───
-  { id: 'glovo',        name: 'Glovo',                 category: 'delivery',  logo: '/logos/glovo.svg' },
-  { id: 'ubereats',     name: 'Uber Eats',             category: 'delivery',  logo: '/logos/ubereats.svg' },
-  { id: 'foodpanda',    name: 'Foodpanda',             category: 'delivery',  logo: '/logos/foodpanda.svg' },
-  { id: 'mcdonalds',    name: "McDonald's",            category: 'delivery',  logo: '/logos/mcdonalds.svg' },
-  { id: 'burgerking',   name: 'Burger King',           category: 'delivery',  logo: '/logos/burgerking.svg' },
-  { id: 'wolt',         name: 'Wolt',                  category: 'delivery',  logo: '/logos/wolt.svg' },
-  { id: 'deliveroo',    name: 'Deliveroo',             category: 'delivery',  logo: '/logos/deliveroo.svg' },
-  { id: 'ifood',        name: 'iFood',                 category: 'delivery',  logo: '/logos/ifood.svg' },
+  // Estados Unidos (Novos)
+  service('chase', 'Chase', 'bank'),
+  service('bankofamerica', 'Bank of America', 'bank'),
+  service('wellsfargo', 'Wells Fargo', 'bank'),
+  service('citi', 'Citi', 'bank'),
 
-  // ─── Viagens ───
-  { id: 'airbnb',       name: 'Airbnb',                category: 'travel',    logo: '/logos/airbnb.svg' },
-  { id: 'booking',      name: 'Booking',               category: 'travel',    logo: '/logos/booking.svg' },
+  // Índia (Novos)
+  service('hdfc', 'HDFC Bank', 'bank'),
+  service('icici', 'ICICI Bank', 'bank'),
+  service('sbi', 'State Bank of India', 'bank'),
 
-  // ─── Entretenimento ───
-  { id: 'netflix',      name: 'Netflix',               category: 'other',     logo: '/logos/netflix.svg' },
-  { id: 'spotify',      name: 'Spotify',               category: 'other',     logo: '/logos/spotify.svg' },
-  { id: 'openai',       name: 'OpenAI / ChatGPT',      category: 'other',     logo: '/logos/openai.svg' },
+  // Angola (Novos)
+  service('bai', 'BAI', 'bank'),
+  service('bfa', 'BFA', 'bank'),
+  service('bic_ao', 'BIC Angola', 'bank'),
 
-  // ─── Datas / encontros ───
-  { id: 'tinder',       name: 'Tinder',                category: 'other',     logo: '/logos/tinder.svg' },
-  { id: 'badoo',        name: 'Badoo',                 category: 'other',     logo: '/logos/badoo.svg' },
-  { id: 'hinge',        name: 'Hinge',                 category: 'other',     logo: '/logos/hinge.svg' },
-  { id: 'grindr',       name: 'Grindr',                category: 'other',     logo: '/logos/grindr.svg' },
-  { id: 'pof',          name: 'POF',                   category: 'other',     logo: '/logos/pof.svg' },
-  { id: 'skout',        name: 'Skout',                 category: 'other',     logo: '/logos/skout.svg' },
-  { id: 'hily',         name: 'Hily',                  category: 'other',     logo: '/logos/hily.svg' },
+  // Nigéria (Novos)
+  service('accessbank', 'Access Bank', 'bank'),
+  service('gtbank', 'GTBank', 'bank'),
+  service('zenithbank', 'Zenith Bank', 'bank'),
+
+  // Reino Unido (Novos)
+  service('barclays', 'Barclays', 'bank'),
+  service('hsbc', 'HSBC', 'bank'),
+  service('lloyds', 'Lloyds Bank', 'bank'),
+  service('monzo', 'Monzo', 'bank'),
+
+  // ─── COMPRAS ───
+  service('amazon', 'Amazon', 'shopping'),
+  service('aliexpress', 'AliExpress', 'shopping'),
+  service('shein', 'SHEIN', 'shopping'),
+  service('ebay', 'eBay', 'shopping'),
+  service('shopee', 'Shopee', 'shopping'),
+  service('walmart', 'Walmart', 'shopping'),
+  service('olx', 'OLX', 'shopping'),
+  service('alibaba', 'Alibaba / Alipay', 'shopping', 'alibabadotcom'),
+  service('jd', 'JD.com', 'shopping'),
+  service('flipkart', 'Flipkart', 'shopping'),
+
+  // ─── JOGOS ───
+  service('steam', 'Steam', 'games'),
+  service('roblox', 'Roblox', 'games'),
+  service('twitch', 'Twitch', 'games'),
+  service('blizzard', 'Blizzard', 'games'),
+
+  // ─── TRANSPORTE ───
+  service('uber', 'Uber', 'transport'),
+  service('bolt', 'Bolt', 'transport'),
+  service('blablacar', 'BlaBlaCar', 'transport'),
+  service('didi', 'DiDi', 'transport'),
+  service('lyft', 'Lyft', 'transport'),
+  service('ola', 'Ola', 'transport'),
+
+  // ─── ENTREGAS E RESTAURAÇÃO ───
+  service('glovo', 'Glovo', 'delivery'),
+  service('ubereats', 'Uber Eats', 'delivery'),
+  service('foodpanda', 'foodpanda', 'delivery'),
+  service('mcdonalds', "McDonald's", 'delivery'),
+  service('burgerking', 'Burger King', 'delivery'),
+  service('ifood', 'iFood', 'delivery'),
+  service('swiggy', 'Swiggy', 'delivery'),
+  service('zomato', 'Zomato', 'delivery'),
+
+  // ─── VIAGENS ───
+  service('airbnb', 'Airbnb', 'travel'),
+  service('booking', 'Booking.com', 'travel', 'bookingdotcom'),
+
+  // ─── ENTRETENIMENTO ───
+  service('netflix', 'Netflix', 'entertainment'),
+  service('spotify', 'Spotify', 'entertainment'),
+
+  // ─── ENCONTROS ───
+  service('tinder', 'Tinder', 'dating'),
+  service('badoo', 'Badoo', 'dating'),
+  service('hinge', 'Hinge', 'dating'),
+
+  // ─── OUTROS E "QUALQUER SERVIÇO" ───
+  service('nike', 'Nike', 'other'),
+  service('cocacola', 'Coca-Cola', 'other'),
+  
+  // 🌟 A OPÇÃO MÁGICA DE PESQUISA (Tem de ser o último)
+  { id: 'anyother', name: 'Qualquer Serviço (Pesquisar)', category: 'other', logo: 'https://cdn.simpleicons.org/amp' },
 ];
 
 export const categories = [
-  { id: 'all',       label: 'Todos' },
-  { id: 'social',    label: 'Redes sociais' },
-  { id: 'bank',      label: 'Bancos' },
-  { id: 'shopping',  label: 'Compras' },
-  { id: 'finance',   label: 'Financeiro' },
-  { id: 'games',     label: 'Jogos' },
+  { id: 'all', label: 'Todos os serviços' },
+  { id: 'social', label: 'Redes sociais' },
+  { id: 'bank', label: 'Bancos' },
+  { id: 'finance', label: 'Finanças' },
+  { id: 'shopping', label: 'Compras' },
+  { id: 'games', label: 'Jogos' },
   { id: 'transport', label: 'Transporte' },
-  { id: 'delivery',  label: 'Delivery' },
-  { id: 'travel',    label: 'Viagens' },
+  { id: 'delivery', label: 'Delivery' },
+  { id: 'travel', label: 'Viagens' },
+  { id: 'other', label: 'Outros' },
 ];
 
 export function getService(id: string): Service | undefined {
-  return services.find((s) => s.id === id);
+  return services.find((item) => item.id === id);
 }
