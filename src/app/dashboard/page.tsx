@@ -6,14 +6,6 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { formatarMoeda } from '@/lib/currencies';
 
-const servicosPopulares = [
-  { nome: 'WhatsApp', preco: 3.85, icone: '💬' },
-  { nome: 'Telegram', preco: 1.93, icone: '✈️' },
-  { nome: 'Instagram', preco: 0.77, icone: '📷' },
-  { nome: 'Facebook', preco: 0.39, icone: '📘' },
-  { nome: 'TikTok', preco: 0.50, icone: '🎵' },
-];
-
 export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [nome, setNome] = useState('');
@@ -47,7 +39,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <p className="text-purple-600 font-medium animate-pulse">A carregar...</p>
+        <p className="text-blue-600 font-medium animate-pulse">A carregar...</p>
       </div>
     );
   }
@@ -55,73 +47,133 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-slate-50 pb-24">
       
-      {/* ===== CABEÇALHO SUPERIOR (ESTILO YELLOWBET) ===== */}
-      <header className="bg-slate-900 sticky top-0 z-50 px-4 py-3 flex items-center justify-between shadow-md">
-        <img src="/logo.jpeg" alt="Konnex" className="h-8 rounded object-contain bg-white p-0.5" />
-        
-        <div className="flex items-center gap-3">
-          <button className="text-white relative">
-            <span className="text-xl">🔔</span>
-            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold">1</span>
-          </button>
-          
-          <Link href="/saldo" className="bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold py-1.5 px-4 rounded-md text-sm transition-colors shadow-sm">
-            Depositar
-          </Link>
-          
-          <Link href="/perfil" className="w-8 h-8 bg-slate-700 rounded-full flex items-center justify-center text-white text-sm font-bold border border-slate-600">
-            {nome.charAt(0).toUpperCase()}
-          </Link>
+      {/* ===== CABEÇALHO SUPERIOR (Estilo Foto 4) ===== */}
+      <header className="bg-[#0f172a] sticky top-0 z-50 px-4 py-3 shadow-lg">
+        <div className="flex items-center justify-between mb-3">
+          {/* Logo e Nome */}
+          <div className="flex items-center gap-2">
+            <img src="/incon-k.jpeg" alt="Konnex" className="h-9 w-9 rounded-full border border-slate-700 object-cover" />
+            <div className="flex flex-col">
+              <span className="text-white font-bold text-sm leading-tight tracking-wide">Konnex Numbers</span>
+              <span className="text-slate-400 text-[10px]">números virtuais</span>
+            </div>
+          </div>
+
+          {/* Ícones de Ação */}
+          <div className="flex items-center gap-4">
+            <button className="text-white relative">
+              <span className="text-xl">🔔</span>
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] w-3.5 h-3.5 rounded-full flex items-center justify-center font-bold">1</span>
+            </button>
+            <button className="text-white">
+              <span className="text-xl">🎁</span>
+            </button>
+            <Link href="/saldo" className="bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold py-1.5 px-4 rounded-md text-xs transition-colors">
+              DEPOSITAR
+            </Link>
+            <Link href="/perfil" className="w-7 h-7 bg-slate-700 rounded-full flex items-center justify-center text-white text-xs font-bold border border-slate-600">
+              {nome.charAt(0).toUpperCase()}
+            </Link>
+          </div>
+        </div>
+
+        {/* Linha do Saldo e Menu Hamburger */}
+        <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-800">
+          <div className="flex items-center gap-3">
+             <Link href="/menu" className="text-white bg-slate-800 p-1.5 rounded-md hover:bg-slate-700 transition-colors">
+               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                 <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+               </svg>
+             </Link>
+          </div>
+          <div className="text-right">
+             <span className="text-slate-400 text-xs font-medium block">SALDO DISPONÍVEL:</span>
+             <span className="text-white font-bold text-lg">{formatarMoeda(saldo, currency)}</span>
+          </div>
         </div>
       </header>
 
-      <div className="p-4 max-w-4xl mx-auto">
+      <div className="max-w-4xl mx-auto p-4">
         
-        {/* ===== SAUDAÇÃO E SALDO ===== */}
-        <div className="mb-6">
-          <h1 className="text-xl font-bold text-slate-800">Olá, {nome.split(' ')[0]} 👋</h1>
-          <p className="text-slate-500 text-sm">Bem-vindo de volta.</p>
+        {/* ===== SERVIÇOS DO FUTURO (SCROLL HORIZONTAL) ===== */}
+        <div className="flex overflow-x-auto gap-4 pb-4 scrollbar-hide -mx-4 px-4 mb-2">
+          {[
+            { icon: '🌍', label: 'Chamadas e SIM' },
+            { icon: '🪙', label: 'Recompensas' },
+            { icon: '🎧', label: 'Suporte VIP' },
+            { icon: '🏆', label: 'Números Top' },
+            { icon: '📣', label: 'Convide e Ganhe' },
+            { icon: '🎥', label: 'Vídeos e Tutoriais' },
+          ].map((item, i) => (
+            <div key={i} className="flex flex-col items-center min-w-[70px] gap-2">
+              <div className="w-14 h-14 bg-white rounded-full shadow-sm border border-slate-200 flex items-center justify-center text-2xl">
+                {item.icon}
+              </div>
+              <span className="text-[10px] text-slate-600 text-center font-medium leading-tight">{item.label}</span>
+            </div>
+          ))}
         </div>
 
-        <div className="bg-gradient-to-r from-purple-700 to-blue-600 rounded-2xl p-6 text-white shadow-lg mb-8 relative overflow-hidden">
-          <div className="relative z-10">
-            <p className="text-purple-100 text-xs font-medium mb-1">Saldo Disponível</p>
-            <h2 className="text-4xl font-bold">{formatarMoeda(saldo, currency)}</h2>
-          </div>
-          {/* Elemento decorativo de fundo */}
-          <div className="absolute -right-4 -bottom-4 text-7xl opacity-20">💳</div>
-        </div>
-
-        {/* ===== ACESSO RÁPIDO (SCROLL HORIZONTAL) ===== */}
-        <h3 className="text-sm font-bold text-slate-800 mb-3 uppercase tracking-wider">Acesso Rápido</h3>
-        <div className="flex overflow-x-auto gap-3 pb-4 scrollbar-hide -mx-4 px-4">
-          <Link href="/servicos" className="bg-white min-w-[120px] p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col items-center justify-center hover:border-purple-400 transition-all">
-            <span className="text-3xl mb-2">🛒</span>
-            <span className="font-semibold text-slate-700 text-xs text-center">Comprar Número</span>
+        {/* ===== ACESSO RÁPIDO ===== */}
+        <h3 className="text-sm font-extrabold text-slate-900 mb-3 uppercase tracking-wider mt-4">Acesso Rápido</h3>
+        <div className="grid grid-cols-3 gap-3 mb-6">
+          <Link href="/servicos" className="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex flex-col items-center justify-center text-center hover:border-blue-400 transition-all">
+            <span className="text-2xl mb-1">🛒</span>
+            <span className="font-bold text-slate-800 text-xs leading-tight">Comprar Número</span>
           </Link>
-          <Link href="/pedidos" className="bg-white min-w-[120px] p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col items-center justify-center hover:border-purple-400 transition-all">
-            <span className="text-3xl mb-2">📋</span>
-            <span className="font-semibold text-slate-700 text-xs text-center">Meus Pedidos</span>
+          <Link href="/pedidos" className="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex flex-col items-center justify-center text-center hover:border-blue-400 transition-all">
+            <span className="text-2xl mb-1">📋</span>
+            <span className="font-bold text-slate-800 text-xs leading-tight">Meus Pedidos</span>
           </Link>
-          <Link href="/historico" className="bg-white min-w-[120px] p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col items-center justify-center hover:border-purple-400 transition-all">
-            <span className="text-3xl mb-2">🧾</span>
-            <span className="font-semibold text-slate-700 text-xs text-center">Histórico</span>
-          </Link>
-          <Link href="/informacoes" className="bg-white min-w-[120px] p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col items-center justify-center hover:border-purple-400 transition-all">
-            <span className="text-3xl mb-2">🎧</span>
-            <span className="font-semibold text-slate-700 text-xs text-center">Suporte</span>
+          <Link href="/servicos?custom=true" className="bg-white p-3 rounded-xl shadow-md border-2 border-yellow-400 flex flex-col items-center justify-center text-center relative overflow-hidden group">
+            <div className="absolute top-0 right-0 bg-yellow-400 text-slate-900 text-[8px] font-bold px-2 py-0.5 rounded-bl-lg">VIP</div>
+            <span className="text-2xl mb-1">✏️</span>
+            <span className="font-bold text-slate-800 text-xs leading-tight">Personalizar Número</span>
           </Link>
         </div>
 
-        {/* ===== SERVIÇOS POPULARES (SCROLL HORIZONTAL) ===== */}
-        <h3 className="text-sm font-bold text-slate-800 mb-3 mt-4 uppercase tracking-wider">Serviços Populares</h3>
-        <div className="flex overflow-x-auto gap-3 pb-4 scrollbar-hide -mx-4 px-4">
-          {servicosPopulares.map((servico) => (
-            <Link href="/servicos" key={servico.nome} className="bg-white min-w-[100px] p-3 rounded-xl shadow-sm border border-slate-200 flex flex-col items-center justify-center">
-              <span className="text-3xl mb-2">{servico.icone}</span>
-              <span className="font-semibold text-slate-800 text-xs">{servico.nome}</span>
-              <span className="text-[10px] font-bold text-purple-600 mt-1">{formatarMoeda(servico.preco, currency)}</span>
+        {/* ===== SERVIÇOS POPULARES ===== */}
+        <h3 className="text-sm font-extrabold text-slate-900 mb-3 uppercase tracking-wider mt-6">Serviços Populares</h3>
+        <div className="grid grid-cols-2 gap-3 mb-8">
+          {[
+            { nome: 'WhatsApp', preco: 3.85, icone: '💬', cor: 'text-green-500' },
+            { nome: 'Insta connect', preco: 0.77, icone: '📷', cor: 'text-pink-500' },
+            { nome: 'Telegram', preco: 1.93, icone: '✈️', cor: 'text-blue-400' },
+            { nome: 'Facebook', preco: 0.39, icone: '📘', cor: 'text-blue-600' },
+          ].map((servico) => (
+            <Link href="/servicos" key={servico.nome} className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className={`text-2xl ${servico.cor}`}>{servico.icone}</span>
+                <div>
+                  <span className="block font-bold text-slate-800 text-xs">{servico.nome}</span>
+                  <span className="block font-bold text-slate-500 text-[10px]">{formatarMoeda(servico.preco, currency)}</span>
+                </div>
+              </div>
             </Link>
+          ))}
+        </div>
+
+        {/* ===== APOIO E SUPORTE (Estilo Foto 1) ===== */}
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 mb-8 relative overflow-hidden">
+          <div className="relative z-10 w-2/3">
+            <h4 className="text-lg font-extrabold text-slate-900">Iniciar Chat Integrado</h4>
+            <p className="text-xs text-slate-500 mb-3 mt-1">Assistente virtual inteligente: Bete, respeitosa, inteligente e amigável.</p>
+            <Link href="/apoio" className="inline-block bg-[#0f172a] text-white text-xs font-bold py-2 px-4 rounded-lg">
+              Suporte via WhatsApp
+            </Link>
+          </div>
+          {/* Avatar da Bete (Substitua por uma imagem real se tiver) */}
+          <div className="absolute right-2 bottom-2 text-6xl">🤖</div>
+        </div>
+
+        {/* ===== PERGUNTAS FREQUENTES (Estilo Foto 1) ===== */}
+        <h3 className="text-sm font-extrabold text-slate-900 mb-3 uppercase tracking-wider">Perguntas Mais Frequentes</h3>
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-6">
+          {['Quero ser um integrado?', 'Como funciona o reembolso?', 'Quais os métodos de pagamento?'].map((pergunta, index) => (
+            <div key={index} className="border-b border-slate-100 last:border-0 p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50">
+              <span className="text-sm font-medium text-slate-700">{pergunta}</span>
+              <span className="text-slate-400">▼</span>
+            </div>
           ))}
         </div>
 
@@ -129,16 +181,19 @@ export default function DashboardPage() {
 
       {/* ===== NAVEGAÇÃO INFERIOR ===== */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex justify-around py-2 px-2 shadow-lg z-50">
-        <Link href="/dashboard" className="flex flex-col items-center text-purple-600 p-2">
+        <Link href="/dashboard" className="flex flex-col items-center text-[#0f172a] p-2">
           <span className="text-xl">🏠</span><span className="text-[10px] font-bold mt-1">Início</span>
         </Link>
-        <Link href="/servicos" className="flex flex-col items-center text-slate-400 hover:text-purple-600 transition-colors p-2">
+        <Link href="/servicos" className="flex flex-col items-center text-slate-400 hover:text-[#0f172a] transition-colors p-2">
           <span className="text-xl">🌐</span><span className="text-[10px] font-medium mt-1">Serviços</span>
         </Link>
-        <Link href="/saldo" className="flex flex-col items-center text-slate-400 hover:text-purple-600 transition-colors p-2">
+        <Link href="/saldo" className="flex flex-col items-center text-slate-400 hover:text-[#0f172a] transition-colors p-2">
           <span className="text-xl">💰</span><span className="text-[10px] font-medium mt-1">Saldo</span>
         </Link>
-        <Link href="/perfil" className="flex flex-col items-center text-slate-400 hover:text-purple-600 transition-colors p-2">
+        <Link href="/apoio" className="flex flex-col items-center text-slate-400 hover:text-[#0f172a] transition-colors p-2">
+          <span className="text-xl">🎧</span><span className="text-[10px] font-medium mt-1">Apoio</span>
+        </Link>
+        <Link href="/perfil" className="flex flex-col items-center text-slate-400 hover:text-[#0f172a] transition-colors p-2">
           <span className="text-xl">👤</span><span className="text-[10px] font-medium mt-1">Perfil</span>
         </Link>
       </div>
