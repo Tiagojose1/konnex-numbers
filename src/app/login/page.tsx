@@ -1,11 +1,14 @@
+/* eslint-disable @next/next/no-img-element */
 // src/app/login/page.tsx
 'use client';
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
 export default function LoginPage() {
+  const router = useRouter(); // Inicialização do router
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [captcha, setCaptcha] = useState(false);
@@ -22,12 +25,14 @@ export default function LoginPage() {
     setMensagem('');
 
     try {
-      const timeoutPromise = new Promise((_, reject) =>
+      const timeoutPromise = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('Tempo esgotado. Verifique a sua ligação à internet.')), 15000)
       );
 
       const loginPromise = supabase.auth.signInWithPassword({ email, password });
-      const resultado = await Promise.race([loginPromise, timeoutPromise]) as any;
+      
+      // Correção do 'any': tipagem correta do Promise.race
+      const resultado = await Promise.race([loginPromise, timeoutPromise]) as Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>;
 
       if (resultado.error) {
         const msg = resultado.error.message;
@@ -42,11 +47,16 @@ export default function LoginPage() {
         return;
       }
 
-      // ✅ CORREÇÃO: Força recarregamento completo para o Dashboard arrancar com a sessão pronta
-      window.location.href = '/dashboard';
+      // Correção do window.location.href
+      router.push('/dashboard');
 
-    } catch (err: any) {
-      setMensagem(err.message || 'Ocorreu um erro. Tente novamente.');
+    } catch (err: unknown) {
+      // Correção do 'any' no catch
+      if (err instanceof Error) {
+        setMensagem(err.message || 'Ocorreu um erro. Tente novamente.');
+      } else {
+        setMensagem('Ocorreu um erro desconhecido. Tente novamente.');
+      }
       setLoading(false);
     }
   };
@@ -55,7 +65,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 font-sans">
       <div className="max-w-md w-full">
         
-        {/* === GLOBO A RODAR + NOME === */}
+        {/* === LOGO A RODAR + NOME === */}
         <div className="text-center mb-10">
           
           <div className="relative flex justify-center mb-6">
@@ -63,7 +73,7 @@ export default function LoginPage() {
             <img 
               src="/globo.png" 
               alt="Globo Konnex" 
-              className="w-24 h-24 relative z-10 globo-girando"
+              className="w-24 h-24 relative z-10 globo-girando object-contain"
             />
           </div>
           
@@ -86,7 +96,7 @@ export default function LoginPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="E-mail ou login"
-            className="w-full p-4 bg-slate-900 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+            className="w-full p-4 bg-slate-900 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all"
             required
           />
 
@@ -95,7 +105,7 @@ export default function LoginPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Password"
-            className="w-full p-4 bg-slate-900 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+            className="w-full p-4 bg-slate-900 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all"
             required
           />
 
@@ -113,14 +123,14 @@ export default function LoginPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <input type="checkbox" className="w-4 h-4 text-violet-600 rounded" />
+            <input type="checkbox" className="w-4 h-4 text-cyan-500 rounded bg-slate-800 border-slate-600" />
             <span className="text-sm text-slate-400">Lembrar</span>
           </div>
 
           <button 
             type="submit" 
             disabled={loading}
-            className="w-full bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-500 hover:to-blue-500 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-violet-600/30 disabled:opacity-50"
+            className="w-full bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-500 hover:to-cyan-400 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-cyan-500/20 disabled:opacity-50"
           >
             {loading ? 'A entrar...' : 'Entrar'}
           </button>
@@ -133,15 +143,15 @@ export default function LoginPage() {
         )}
 
         <div className="mt-8 space-y-4">
-          <Link href="/recuperar-senha" className="block text-center text-violet-400 hover:text-violet-300 text-sm font-medium transition-colors">
+          <Link href="/recuperar-senha" className="block text-center text-cyan-400 hover:text-cyan-300 text-sm font-medium transition-colors">
             Esqueci minha senha
           </Link>
           
-          <Link href="/registo" className="block w-full text-center bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-400 hover:to-green-400 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-emerald-500/30">
+          <Link href="/registo" className="block w-full text-center bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-400 hover:to-green-400 text-white font-bold py-4 rounded-xl transition-all shadow-lg">
             Cadastre-se Agora
           </Link>
 
-          <Link href="/informacoes" className="block w-full text-center bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-4 rounded-xl transition-colors">
+          <Link href="/informacoes" className="block w-full text-center bg-slate-900 hover:bg-slate-800 text-slate-300 font-bold py-4 rounded-xl transition-colors">
             Mais Informações
           </Link>
         </div>

@@ -2,8 +2,17 @@
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
 
 export default function ApoioPage() {
+  const [faqAberto, setFaqAberto] = useState<number | null>(null);
+
+  const faqs = [
+    { pergunta: 'Como funciona o reembolso?', resposta: 'Se o SMS não chegar em 10 minutos, o valor é devolvido automaticamente ao seu saldo.' },
+    { pergunta: 'Quais os métodos de pagamento?', resposta: 'Aceitamos M-Pesa, e-Mola, Cartão de Crédito e Transferência Bancária.' },
+    { pergunta: 'O que é um número virtual?', resposta: 'É um número temporário que recebe SMS, sem precisar de um chip físico.' },
+  ];
+
   return (
     <div className="min-h-screen bg-slate-50 pb-24">
       {/* Cabeçalho */}
@@ -13,6 +22,21 @@ export default function ApoioPage() {
 
       <div className="max-w-2xl mx-auto p-4">
         
+        {/* ===== CHAT DA BETE (Movido do Dashboard) ===== */}
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 mb-6 relative overflow-hidden">
+          <div className="relative z-10 w-2/3">
+            <h4 className="text-lg font-extrabold text-slate-900">Iniciar Chat Integrado</h4>
+            <p className="text-xs text-slate-500 mb-3 mt-1">Assistente virtual inteligente: Bete, respeitosa, inteligente e amigável.</p>
+            <button 
+              onClick={() => alert('O chat da Bete estará disponível em breve!')}
+              className="inline-block bg-[#0f172a] text-white text-xs font-bold py-2 px-4 rounded-lg"
+            >
+              Suporte via WhatsApp
+            </button>
+          </div>
+          <div className="absolute right-2 bottom-2 text-6xl">🤖</div>
+        </div>
+
         {/* Contacto de Apoio */}
         <h2 className="text-lg font-bold text-slate-900 mb-4">Contacto de apoio ao cliente</h2>
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 mb-8">
@@ -28,10 +52,9 @@ export default function ApoioPage() {
           </button>
         </div>
 
-        {/* FAQ */}
+        {/* ===== FAQ (Movido do Dashboard) ===== */}
         <h2 className="text-lg font-bold text-slate-900 mb-4">Perguntas mais frequentes</h2>
         
-        {/* Barra de Pesquisa */}
         <div className="relative mb-4">
           <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
           <input 
@@ -41,24 +64,21 @@ export default function ApoioPage() {
           />
         </div>
 
-        {/* Categorias de FAQ */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-          {[
-            { icon: '👤', title: 'Conta', desc: '2 Perguntas frequentes' },
-            { icon: '💳', title: 'Equilíbrio', desc: '4 Perguntas frequentes' },
-            { icon: '📡', title: 'Serviços', desc: '12 Perguntas frequentes' },
-          ].map((item, index) => (
-            <div key={index} className="border-b border-slate-100 last:border-0 p-5 flex items-center justify-between hover:bg-slate-50 cursor-pointer">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-xl">
-                  {item.icon}
+          {faqs.map((faq, index) => (
+            <div key={index} className="border-b border-slate-100 last:border-0">
+              <button 
+                onClick={() => setFaqAberto(faqAberto === index ? null : index)}
+                className="w-full flex items-center justify-between p-5 hover:bg-slate-50 text-left"
+              >
+                <span className="font-bold text-slate-800 text-sm">{faq.pergunta}</span>
+                <span className={`text-slate-400 transform transition-transform ${faqAberto === index ? 'rotate-180' : ''}`}>▼</span>
+              </button>
+              {faqAberto === index && (
+                <div className="px-5 pb-5 text-sm text-slate-600 bg-slate-50/50">
+                  {faq.resposta}
                 </div>
-                <div>
-                  <h4 className="font-bold text-slate-800">{item.title}</h4>
-                  <p className="text-xs text-slate-500">{item.desc}</p>
-                </div>
-              </div>
-              <span className="text-blue-600 text-sm font-medium">Ver mais ⌄</span>
+              )}
             </div>
           ))}
         </div>

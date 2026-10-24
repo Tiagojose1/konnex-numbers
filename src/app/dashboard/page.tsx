@@ -1,12 +1,15 @@
+/* eslint-disable @next/next/no-img-element */
 // src/app/dashboard/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation'; // Importação necessária
 import { supabase } from '@/lib/supabase';
 import { formatarMoeda } from '@/lib/currencies';
 
 export default function DashboardPage() {
+  const router = useRouter(); // Inicialização do router
   const [loading, setLoading] = useState(true);
   const [nome, setNome] = useState('');
   const [saldo, setSaldo] = useState(0);
@@ -16,7 +19,7 @@ export default function DashboardPage() {
     const carregarDados = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        window.location.href = '/login';
+        router.push('/login'); // Correção: usar router.push em vez de window.location
         return;
       }
 
@@ -34,7 +37,7 @@ export default function DashboardPage() {
       setLoading(false);
     };
     carregarDados();
-  }, []);
+  }, [router]);
 
   if (loading) {
     return (
@@ -47,28 +50,28 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-slate-50 pb-24">
       
-      {/* ===== CABEÇALHO SUPERIOR (Estilo Foto 4) ===== */}
+      {/* ===== CABEÇALHO SUPERIOR ===== */}
       <header className="bg-[#0f172a] sticky top-0 z-50 px-4 py-3 shadow-lg">
         <div className="flex items-center justify-between mb-3">
-          {/* Logo e Nome */}
           <div className="flex items-center gap-2">
-            <img src="/incon-k.jpeg" alt="Konnex" className="h-9 w-9 rounded-full border border-slate-700 object-cover" />
+            <img src="/logo.jpeg" alt="Konnex" className="h-9 w-9 rounded-full border border-slate-700 object-cover" />
             <div className="flex flex-col">
-              <span className="text-white font-bold text-sm leading-tight tracking-wide">Konnex Numbers</span>
-              <span className="text-slate-400 text-[10px]">números virtuais</span>
+              <span className="text-sm font-extrabold tracking-tight leading-tight">
+  <span className="bg-gradient-to-r from-violet-500 via-blue-500 to-cyan-400 bg-clip-text text-transparent">Konnex</span>
+  <span className="text-white ml-1">Numbers</span>
+</span>
+              <span className="text-slate-400 text-[10px]">   números virtuais</span>
             </div>
           </div>
 
-          {/* Ícones de Ação */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <button className="text-white relative">
               <span className="text-xl">🔔</span>
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] w-3.5 h-3.5 rounded-full flex items-center justify-center font-bold">1</span>
             </button>
             <button className="text-white">
               <span className="text-xl">🎁</span>
             </button>
-            <Link href="/saldo" className="bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold py-1.5 px-4 rounded-md text-xs transition-colors">
+            <Link href="/saldo" className="bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold py-1.5 px-3 rounded-md text-xs transition-colors">
               DEPOSITAR
             </Link>
             <Link href="/perfil" className="w-7 h-7 bg-slate-700 rounded-full flex items-center justify-center text-white text-xs font-bold border border-slate-600">
@@ -77,15 +80,12 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Linha do Saldo e Menu Hamburger */}
         <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-800">
-          <div className="flex items-center gap-3">
-             <Link href="/menu" className="text-white bg-slate-800 p-1.5 rounded-md hover:bg-slate-700 transition-colors">
-               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                 <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-               </svg>
-             </Link>
-          </div>
+          <Link href="/menu" className="text-white bg-slate-800 p-1.5 rounded-md hover:bg-slate-700 transition-colors">
+             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+               <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+             </svg>
+          </Link>
           <div className="text-right">
              <span className="text-slate-400 text-xs font-medium block">SALDO DISPONÍVEL:</span>
              <span className="text-white font-bold text-lg">{formatarMoeda(saldo, currency)}</span>
@@ -95,28 +95,27 @@ export default function DashboardPage() {
 
       <div className="max-w-4xl mx-auto p-4">
         
-        {/* ===== SERVIÇOS DO FUTURO (SCROLL HORIZONTAL) ===== */}
+        {/* ===== SERVIÇOS DO FUTURO / RECOMPENSAS ===== */}
         <div className="flex overflow-x-auto gap-4 pb-4 scrollbar-hide -mx-4 px-4 mb-2">
           {[
-            { icon: '🌍', label: 'Chamadas e SIM' },
-            { icon: '🪙', label: 'Recompensas' },
-            { icon: '🎧', label: 'Suporte VIP' },
-            { icon: '🏆', label: 'Números Top' },
-            { icon: '📣', label: 'Convide e Ganhe' },
-            { icon: '🎥', label: 'Vídeos e Tutoriais' },
+            { icon: '🌍', label: 'Chamadas e SIM', link: '/em-breve' },
+            { icon: '🪙', label: 'Recompensas', link: '/em-breve' },
+            { icon: '💎', label: 'Bónus VIP', link: '/saldo' },
+            { icon: '🤝', label: 'Convide Amigos', link: '/em-breve' },
+            { icon: '🎥', label: 'Tutoriais', link: '/em-breve' },
           ].map((item, i) => (
-            <div key={i} className="flex flex-col items-center min-w-[70px] gap-2">
+            <Link href={item.link} key={i} className="flex flex-col items-center min-w-[70px] gap-2">
               <div className="w-14 h-14 bg-white rounded-full shadow-sm border border-slate-200 flex items-center justify-center text-2xl">
                 {item.icon}
               </div>
               <span className="text-[10px] text-slate-600 text-center font-medium leading-tight">{item.label}</span>
-            </div>
+            </Link>
           ))}
         </div>
 
         {/* ===== ACESSO RÁPIDO ===== */}
         <h3 className="text-sm font-extrabold text-slate-900 mb-3 uppercase tracking-wider mt-4">Acesso Rápido</h3>
-        <div className="grid grid-cols-3 gap-3 mb-6">
+        <div className="grid grid-cols-2 gap-3 mb-6">
           <Link href="/servicos" className="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex flex-col items-center justify-center text-center hover:border-blue-400 transition-all">
             <span className="text-2xl mb-1">🛒</span>
             <span className="font-bold text-slate-800 text-xs leading-tight">Comprar Número</span>
@@ -125,10 +124,14 @@ export default function DashboardPage() {
             <span className="text-2xl mb-1">📋</span>
             <span className="font-bold text-slate-800 text-xs leading-tight">Meus Pedidos</span>
           </Link>
+          <Link href="/historico" className="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex flex-col items-center justify-center text-center hover:border-blue-400 transition-all">
+            <span className="text-2xl mb-1">🧾</span>
+            <span className="font-bold text-slate-800 text-xs leading-tight">Histórico</span>
+          </Link>
           <Link href="/servicos?custom=true" className="bg-white p-3 rounded-xl shadow-md border-2 border-yellow-400 flex flex-col items-center justify-center text-center relative overflow-hidden group">
             <div className="absolute top-0 right-0 bg-yellow-400 text-slate-900 text-[8px] font-bold px-2 py-0.5 rounded-bl-lg">VIP</div>
             <span className="text-2xl mb-1">✏️</span>
-            <span className="font-bold text-slate-800 text-xs leading-tight">Personalizar Número</span>
+            <span className="font-bold text-slate-800 text-xs leading-tight">Personalizar</span>
           </Link>
         </div>
 
@@ -141,7 +144,7 @@ export default function DashboardPage() {
             { nome: 'Telegram', preco: 1.93, icone: '✈️', cor: 'text-blue-400' },
             { nome: 'Facebook', preco: 0.39, icone: '📘', cor: 'text-blue-600' },
           ].map((servico) => (
-            <Link href="/servicos" key={servico.nome} className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+            <Link href="/servicos" key={servico.nome} className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between hover:shadow-md transition-shadow">
               <div className="flex items-center gap-2">
                 <span className={`text-2xl ${servico.cor}`}>{servico.icone}</span>
                 <div>
@@ -150,30 +153,6 @@ export default function DashboardPage() {
                 </div>
               </div>
             </Link>
-          ))}
-        </div>
-
-        {/* ===== APOIO E SUPORTE (Estilo Foto 1) ===== */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 mb-8 relative overflow-hidden">
-          <div className="relative z-10 w-2/3">
-            <h4 className="text-lg font-extrabold text-slate-900">Iniciar Chat Integrado</h4>
-            <p className="text-xs text-slate-500 mb-3 mt-1">Assistente virtual inteligente: Bete, respeitosa, inteligente e amigável.</p>
-            <Link href="/apoio" className="inline-block bg-[#0f172a] text-white text-xs font-bold py-2 px-4 rounded-lg">
-              Suporte via WhatsApp
-            </Link>
-          </div>
-          {/* Avatar da Bete (Substitua por uma imagem real se tiver) */}
-          <div className="absolute right-2 bottom-2 text-6xl">🤖</div>
-        </div>
-
-        {/* ===== PERGUNTAS FREQUENTES (Estilo Foto 1) ===== */}
-        <h3 className="text-sm font-extrabold text-slate-900 mb-3 uppercase tracking-wider">Perguntas Mais Frequentes</h3>
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-6">
-          {['Quero ser um integrado?', 'Como funciona o reembolso?', 'Quais os métodos de pagamento?'].map((pergunta, index) => (
-            <div key={index} className="border-b border-slate-100 last:border-0 p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50">
-              <span className="text-sm font-medium text-slate-700">{pergunta}</span>
-              <span className="text-slate-400">▼</span>
-            </div>
           ))}
         </div>
 
