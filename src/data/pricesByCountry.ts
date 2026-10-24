@@ -91,7 +91,6 @@ export const pricesByCountry: Record<string, Record<string, PriceEntry>> = {
   },
 };
 
-// ─── LÓGICA DE PREÇO PADRÃO E STOCK AUTOMÁTICO ───
 const DEFAULT_PRICE_MZN: Record<string, number> = {
   social: 150, bank: 180, finance: 160, shopping: 70, games: 80,
   transport: 65, delivery: 70, travel: 120, technology: 100, other: 100,
@@ -100,7 +99,7 @@ const DEFAULT_PRICE_MZN: Record<string, number> = {
 export function getPrice(serviceId: string, countryId: string, variant: 'random' | 'chooseDdi' | 'custom' = 'random') {
   const entry = pricesByCountry[countryId]?.[serviceId];
   
-  // 1. Tenta encontrar o preço específico (como Moçambique e Brasil têm)
+  // 1. Tenta encontrar o preço específico
   if (entry) {
     if (entry.variants) {
       const v = entry.variants[variant];
@@ -112,36 +111,25 @@ export function getPrice(serviceId: string, countryId: string, variant: 'random'
     }
   }
 
-  // 2. Se o país não tiver preço específico, aplica o Fallback com STOCK AUTOMÁTICO
+  // 2. Se não encontrar, aplica o Fallback
   const service = services.find((s) => s.id === serviceId);
   const country = countries.find((c) => c.id === countryId);
   if (!service || !country) return null;
 
-  const rates: Record<string, number> = { MZN: 1, BRL: 0.086, EUR: 0.014, USD: 0.015, ZAR: 0.28, INR: 1.3 };
-  const taxa = rates[country.currency] || 1; 
-
-  // Gera um número de stock aleatório entre 50.000 e 900.000 para parecer real
-  const stockAleatorio = Math.floor(Math.random() * (900000 - 50000 + 1)) + 50000;
-
-  // 🆕 REGRA DO NÚMERO PERSONALIZADO
-  if (variant === 'custom') {
-    const baseCustomMZN = serviceId === 'whatsapp' ? 350 : 300;
-    const precoCustomLocal = Number((baseCustomMZN * taxa).toFixed(2));
-    
-    return {
-      available: stockAleatorio, // Agora tem stock!
-      price: precoCustomLocal,
-      isDefault: true
-    };
+  // 🆕 A REGRA DE OURO: Se for um banco e não estiver na lista do país, NÃO EXISTE.
+  if (service.category === 'bank') {
+    return null; 
   }
 
-  // Preço Padrão Normal (Aleatório)
-  const baseMZN = DEFAULT_PRICE_MZN[service.category] || 100;
-  const precoLocal = Number((baseMZN * taxa).toFixed(2));
+  const rates: Record<string, number> = { MZN: 1, BRL: 0.086, EUR: 0.014, USD: 0.015, ZAR: 0.28, INR: 1.3 };
+  const taxa = rates[country.currency] || 1; 
+  const stockAleatorio = Math.floor(Math.random() * (900000 - 50000 + 1)) + 50000;
 
-  return {
-    available: stockAleatorio, // Agora tem stock!
-    price: precoLocal,
-    isDefault: true
-  };
+  if (variant === 'custom') {
+    const baseCustomMZN = serviceId === 'whatsapp' ? 350 : 300;
+    return { available: stockAleatorio, price: Number((baseCustomMZN * taxa).toFixed(2)), isDefault: true };
+  }
+
+  const baseMZN = DEFAULT_PRICE_MZN[service.category] || 100;
+  return { available: stockAleatorio, price: Number((baseMZN * taxa).toFixed(2)), isDefault: true };
 }
