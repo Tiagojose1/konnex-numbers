@@ -1,13 +1,14 @@
-import dotenv from 'dotenv';
-dotenv.config({ path: '.env.local' });
-
 import express, { Request, Response } from 'express';
 import twilio from 'twilio';
 import cors from 'cors';
 import { createClient } from '@supabase/supabase-js';
 
 const app = express();
-app.use(cors());
+
+// ✅ CORS configurado para aceitar o teu site na Vercel e o localhost
+app.use(cors({
+  origin: ["http://localhost:3000", "https://konnex-numbers.vercel.app"]
+}));
 app.use(express.json());
 
 const client = twilio(
@@ -58,78 +59,100 @@ app.post('/verify-otp', async (req: Request, res: Response) => {
 // ==========================================
 app.post('/api/buy-number', async (req: Request, res: Response) => {
   const { userId, service, country } = req.body; 
+  const PRECO_COMPRA = 50;
 
   try {
-    let numeroComprado = '';
-    let idFornecedor = ''; 
-    let valorCusto = 0;
-    const fornecedorUsado = service === 'WhatsApp' ? '5sim' : 'smspool';
-
-    if (fornecedorUsado === '5sim') {
-      // --- LÓGICA DO 5SIM (Para WhatsApp) ---
-      const pais5sim = 'russia'; 
-      const fivesimRes = await fetch(`https://5sim.net/v1/user/buy/activation/${pais5sim}/any/whatsapp`, {
-        method: 'GET',
-        headers: { 
-          'Authorization': `Bearer ${process.env.FIVESIM_API_KEY}`,
-          'Accept': 'application/json'
-        }
-      });
-
-      const data5sim = await fivesimRes.json();
-      
-      if (!fivesimRes.ok) throw new Error(data5sim.message || "Erro ao comprar no 5sim.");
-
-      numeroComprado = data5sim.phone;
-      idFornecedor = data5sim.id.toString();
-      valorCusto = data5sim.price;
-
-    } else {
-      // --- LÓGICA DO SMSPOOL (Para Telegram, Instagram, etc) ---
-      const smspoolRes = await fetch("https://api.smspool.net/purchase/sms", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          key: process.env.SMSPOOL_API_KEY as string,
-          country: country || "MZ",
-          service: service 
-        })
-      });
-
-      const dataSpool = await smspoolRes.json();
-      if (!smspoolRes.ok || dataSpool.success === 0) throw new Error(dataSpool.message || "Erro no SMSPool.");
-
-      numeroComprado = dataSpool.number;
-      idFornecedor = dataSpool.order_id;
-      valorCusto = dataSpool.cost;
-    }
-
-    // CORREÇÃO: Tabela 'orders' e adição dos campos que o frontend espera
-    const { data: novoPedido, error: dbError } = await supabaseAdmin
-      .from('orders')
-      .insert([{
-        user_id: userId,
-        numero: numeroComprado,
-        servico: service,
-        pais: country,
-        status: 'Aguardando',
-        sms_otp: 'Pendente',
-        order_id_smspool: idFornecedor, 
-        valor: valorCusto,
-        data_criacao: new Date().toISOString()
-      }])
-      .select()
+    const { data: perfil, error: errPerfil } = await supabaseAdmin
+      .from('profiles')
+      .select('saldo')
+      .eq('id', userId)
       .single();
 
-    if (dbError) throw new Error("Erro ao guardar na Base de Dados.");
+    if (errPerfil || !perfil) throw new Error("Utilizador não encontrado.");
+    
+    const saldoAtual = parseFloat(perfil.saldo) || 0;
+    if (saldoAtual < PRECO_COMPRA) {
+      return res.status(400).json({ error: "Saldo insuficiente. Adicione saldo à sua conta." });
+    }
 
-    return res.status(200).json({ 
-      success: true, 
-      numero: numeroComprado,
-      pedidoId: novoPedido.id,
-      orderId: idFornecedor,
-      fornecedor: fornecedorUsado
-    });
+    await supabaseAdmin.from('profiles').update({ saldo: saldoAtual - PRECO_COMPRA }).eq('id', userId);
+
+    let numeroComprado = '';
+    let idFornecedor = ''; 
+    const fornecedorUsado = service === 'WhatsApp' ? '5sim' : 'smspool';
+
+    try {
+      if (fornecedorUsado === '5sim') {
+        const pais5sim = 'russia'; 
+        const fivesimRes = await fetch(`https://5sim.net/v1/user/buy/activation/${pais5sim}/any/whatsapp`, {
+          method: 'GET',
+          headers: { 
+            'Authorization': `Bearer ${process.env.FIVESIM_API_KEY}`,
+            'Accept': 'application/json'
+          }
+        });
+
+        const textData = await fivesimRes.text();
+        let data5sim;
+        try {
+          data5sim = JSON.parse(textData);
+        } catch {
+          throw new Error(`Erro no 5sim: ${textData}`);
+        }
+        
+        if (!fivesimRes.ok) throw new Error(data5sim.message || `Erro no 5sim: ${textData}`);
+
+        numeroComprado = data5sim.phone;
+        idFornecedor = data5sim.id.toString();
+
+      } else {
+        const smspoolRes = await fetch("https://api.smspool.net/purchase/sms", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({
+            key: process.env.SMSPOOL_API_KEY as string,
+            country: country || "MZ",
+            service: service 
+          })
+        });
+
+        const dataSpool = await smspoolRes.json();
+        if (!smspoolRes.ok || dataSpool.success === 0) throw new Error(dataSpool.message || "Erro no SMSPool.");
+
+        numeroComprado = dataSpool.number;
+        idFornecedor = dataSpool.order_id;
+      }
+
+      const { data: novoPedido, error: dbError } = await supabaseAdmin
+        .from('orders')
+        .insert([{
+          user_id: userId,
+          numero: numeroComprado,
+          servico: service,
+          pais: country,
+          status: 'Aguardando',
+          sms_otp: 'Pendente',
+          order_id_smspool: idFornecedor, 
+          valor: PRECO_COMPRA,
+          data_criacao: new Date().toISOString()
+        }])
+        .select()
+        .single();
+
+      if (dbError) throw new Error("Erro ao guardar na Base de Dados.");
+
+      return res.status(200).json({ 
+        success: true, 
+        numero: numeroComprado,
+        pedidoId: novoPedido.id,
+        orderId: idFornecedor,
+        fornecedor: fornecedorUsado
+      });
+
+    } catch (errorCompra: unknown) {
+      await supabaseAdmin.from('profiles').update({ saldo: saldoAtual }).eq('id', userId);
+      throw errorCompra;
+    }
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
@@ -156,7 +179,10 @@ app.get('/api/check-sms/:pedidoId/:orderId', async (req: Request, res: Response)
           'Accept': 'application/json'
         }
       });
-      const data5sim = await fivesimRes.json();
+      
+      const textData = await fivesimRes.text();
+      let data5sim;
+      try { data5sim = JSON.parse(textData); } catch { return res.status(200).json({ sms_recebido: false }); }
 
       if (data5sim.sms && data5sim.sms.length > 0) {
         codigoRecebido = data5sim.sms[0].code;
@@ -178,7 +204,6 @@ app.get('/api/check-sms/:pedidoId/:orderId', async (req: Request, res: Response)
     }
 
     if (codigoRecebido) {
-      // CORREÇÃO: Tabela 'orders'
       await supabaseAdmin
         .from('orders') 
         .update({ 

@@ -32,7 +32,8 @@ export default function ComprarNumeroPage() {
         return;
       }
 
-      const response = await fetch('http://localhost:3001/api/buy-number', {
+      // ✅ ALTERAÇÃO: Uso da variável de ambiente
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/buy-number`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -42,19 +43,24 @@ export default function ComprarNumeroPage() {
         })
       });
 
-      const data = await response.json();
+      const textResponse = await response.text();
+      let data;
+      try {
+        data = JSON.parse(textResponse);
+      } catch {
+        throw new Error(`Erro do servidor: ${textResponse}`);
+      }
 
       if (!response.ok) {
         throw new Error(data.error || 'Erro ao comprar o número.');
       }
 
-      // CORREÇÃO: Atribuições corrigidas e separadas
       setNumero(data.numero);
       setPedidoId(data.pedidoId);
       setOrderIdSpool(data.orderId);
       setFornecedor(data.fornecedor);
 
-        } catch (err: unknown) {
+    } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
       } else {
@@ -71,8 +77,8 @@ export default function ComprarNumeroPage() {
     if (numero && pedidoId && orderIdSpool && !smsCode) {
       interval = setInterval(async () => {
         try {
-          // CORREÇÃO: Incluir o fornecedor na URL
-          const res = await fetch(`http://localhost:3001/api/check-sms/${pedidoId}/${orderIdSpool}?fornecedor=${fornecedor}`);
+          // ✅ ALTERAÇÃO: Uso da variável de ambiente no polling
+          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/check-sms/${pedidoId}/${orderIdSpool}?fornecedor=${fornecedor}`);
           const data = await res.json();
 
           if (data.sms_recebido && data.codigo) {
