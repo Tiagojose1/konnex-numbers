@@ -14,22 +14,17 @@ export default function VerificacaoPage() {
   const [message, setMessage] = useState<{ text: string; type: 'error' | 'success' } | null>(null);
   const [timeLeft, setTimeLeft] = useState(0);
 
-  // NOVO: Verifica se está logado e pré-preenche o número
   useEffect(() => {
     const checkUserAndPrefill = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       
-      // Se não estiver logado, vai para o login
       if (!session) {
         router.push('/login');
         return;
       }
 
-      // Se o utilizador guardou o telefone no registo, colocamos no campo
       const savedPhone = session.user.user_metadata?.telefone;
       if (savedPhone) {
-        // Se o número não tiver o '+', adicionamos o +258 (Moçambique) por defeito
-        // Pode ajustar esta lógica conforme a sua necessidade
         const formattedPhone = savedPhone.startsWith('+') ? savedPhone : `+258${savedPhone}`;
         setPhoneNumber(formattedPhone);
       }
@@ -50,7 +45,8 @@ export default function VerificacaoPage() {
     setMessage(null);
 
     try {
-      const response = await fetch('http://localhost:3001/send-verification', {
+      // ✅ ALTERAÇÃO: Uso da variável de ambiente
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/send-verification`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phoneNumber }),
@@ -88,7 +84,8 @@ export default function VerificacaoPage() {
         return;
       }
 
-      const response = await fetch('http://localhost:3001/verify-otp', {
+      // ✅ ALTERAÇÃO: Uso da variável de ambiente
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/verify-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -103,7 +100,6 @@ export default function VerificacaoPage() {
       if (response.ok && data.status === 'approved') {
         setMessage({ text: 'Número verificado com sucesso! Redirecionando...', type: 'success' });
         
-        // Podes guardar no localStorage se quiseres, mas o Supabase já tem
         localStorage.setItem('konnex_user_phone', phoneNumber);
 
         setTimeout(() => {

@@ -1,3 +1,6 @@
+import dotenv from 'dotenv';
+dotenv.config({ path: '.env.local' });
+
 import express, { Request, Response } from 'express';
 import twilio from 'twilio';
 import cors from 'cors';
