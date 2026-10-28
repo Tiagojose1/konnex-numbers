@@ -5,6 +5,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { toast } from 'sonner'; // 🆕 Importação do Sonner
 import { supabase } from '@/lib/supabase';
 import { converterParaMZN } from '@/lib/currencies';
 import { countries, getCountry, Country } from '@/data/countries';
@@ -43,25 +44,28 @@ export default function ServicosPage() {
     const precoInfo = getPrice(servicoSelecionado.id, paisSelecionadoParaCompra.id, variant);
     
     if (!precoInfo) {
-        alert("Erro ao obter preço para este serviço.");
+        toast.error("Erro ao obter preço para este serviço.");
         setAProcessar(null);
         return;
     }
 
     if (precoInfo.available === 0 && precoInfo.isDefault && !isCustom) {
-      alert("Serviço sem stock confirmado no momento.");
+      toast.error("Serviço sem stock confirmado no momento.");
       setAProcessar(null);
       return;
     }
 
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
-        alert("Sessão expirada. Faça login novamente.");
+        toast.error("Sessão expirada. Faça login novamente.");
         setAProcessar(null);
         return;
     }
 
     const valorEmMZN = converterParaMZN(precoInfo.price || 0, paisSelecionadoParaCompra.currency);
+
+    // 🆕 Mostra a notificação de loading
+    const toastId = toast.loading("A processar o seu pedido...");
 
     const resposta = await fetch('/api/comprar', {
       method: 'POST',
@@ -78,15 +82,16 @@ export default function ServicosPage() {
     const dados = await resposta.json();
 
     if (dados.error) {
-      alert(`Erro: ${dados.error}`);
+      // 🆕 Notificação de erro
+      toast.error(`Erro: ${dados.error}`, { id: toastId });
       setAProcessar(null);
     } else {
-      alert(dados.mensagem);
+      // 🆕 Notificação de sucesso
+      toast.success(dados.mensagem, { id: toastId });
       router.push('/pedidos');
     }
   };
 
-  // 🆕 Função para remover acentos e facilitar a pesquisa (ex: "Mexico" encontra "México")
   const normalizeText = (text: string) => {
     return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   };
@@ -219,7 +224,6 @@ export default function ServicosPage() {
         </div>
       </div>
 
-      {/* MODAL, NAVEGAÇÃO INFERIOR... (Mantém-se igual) */}
       {modalAberto && servicoSelecionado && paisSelecionadoParaCompra && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[100]">
           <div className="bg-slate-800 w-full max-w-sm rounded-2xl p-6 border border-slate-700 shadow-2xl">

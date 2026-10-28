@@ -6,6 +6,7 @@ import { Order } from '@/types';
 import { StatusBadge } from './StatusBadge';
 import { supabase } from '@/lib/supabase';
 import { formatarMoeda } from '@/lib/currencies';
+import { toast } from 'sonner'; // 🆕 Importação
 
 interface OrdersTableProps {
   pedidosIniciais: Order[];
@@ -42,7 +43,6 @@ export function OrdersTable({ pedidosIniciais }: OrdersTableProps) {
   const [aProcessar, setAProcessar] = useState<string | null>(null);
   const [currency, setCurrency] = useState('MZN');
 
-  // Carregar a moeda do utilizador
   useEffect(() => {
     const carregarMoeda = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -61,41 +61,71 @@ export function OrdersTable({ pedidosIniciais }: OrdersTableProps) {
   const handleCopiarCodigo = (codigo: string | undefined) => {
     if (!codigo) return;
     navigator.clipboard.writeText(codigo);
-    alert(`Código ${codigo} copiado com sucesso!`);
+    toast.success(`Código ${codigo} copiado!`); // 🆕 Toast
   };
 
   const handleCancelarPedido = async (id: string, valor: number) => {
-    if (!confirm("Tem a certeza que deseja cancelar? O valor será reembolsado no seu saldo.")) return;
+    // 🆕 Confirmação com Toast em vez de confirm() feio
+    toast("Tem a certeza que deseja cancelar?", {
+      description: "O valor será reembolsado no seu saldo.",
+      action: {
+        label: "Sim, Cancelar",
+        onClick: async () => {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) return;
 
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { alert("Sessão expirada."); return; }
+          const toastId = toast.loading("A cancelar o pedido...");
+          
+          const resposta = await fetch('/api/cancelar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: session.user.id, pedidoId: id, valor: Number(valor) }),
+          });
 
-    const resposta = await fetch('/api/cancelar', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: session.user.id, pedidoId: id, valor: Number(valor) }),
+          const dados = await resposta.json();
+          
+          if (dados.error) {
+            toast.error(`Erro: ${dados.error}`, { id: toastId });
+          } else {
+            toast.success(dados.mensagem, { id: toastId });
+            // Atualiza a tabela sem recarregar a página
+            setPedidos(pedidos.map(p => p.id === id ? { ...p, status: 'Cancelado', sms_otp: 'Expirado' } : p));
+          }
+        }
+      },
+      cancel: { label: "Voltar", onClick: () => {} }
     });
-
-    const dados = await resposta.json();
-    if (dados.error) alert(`Erro: ${dados.error}`);
-    else { alert(dados.mensagem); window.location.reload(); }
   };
 
   const handleSimularSms = async (id: string) => {
-    if (!confirm("Simular a receção do SMS para este pedido?")) return;
-    
-    setAProcessar(id);
-    const resposta = await fetch('/api/simular-sms', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pedidoId: id }),
+    toast("Simular a receção do SMS?", {
+      description: "Para testar o fluxo de receção de código.",
+      action: {
+        label: "Sim, Simular",
+        onClick: async () => {
+          setAProcessar(id);
+          const toastId = toast.loading("A gerar código...");
+          
+          const resposta = await fetch('/api/simular-sms', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pedidoId: id }),
+          });
+
+          const dados = await resposta.json();
+          setAProcessar(null);
+
+          if (dados.error) {
+            toast.error(`Erro: ${dados.error}`, { id: toastId });
+          } else {
+            toast.success(`SMS Recebido! Código: ${dados.codigo}`, { id: toastId });
+            // Atualiza a tabela sem recarregar a página
+            setPedidos(pedidos.map(p => p.id === id ? { ...p, status: 'Concluído', sms_otp: 'Sucesso', codigo_recebido: dados.codigo } : p));
+          }
+        }
+      },
+      cancel: { label: "Cancelar", onClick: () => {} }
     });
-
-    const dados = await resposta.json();
-    setAProcessar(null);
-
-    if (dados.error) alert(`Erro: ${dados.error}`);
-    else { alert(`SMS Simulado! Código: ${dados.codigo}`); window.location.reload(); }
   };
 
   return (

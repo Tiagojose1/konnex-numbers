@@ -3,16 +3,18 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { RealtimeChannel } from '@supabase/supabase-js'; // 🆕 Importação correta
 import { OrdersTable } from '@/components/OrdersTable';
 import { supabase } from '@/lib/supabase';
-import { Order } from '@/types';
+import { Order, OrderStatus, SmsStatus } from '@/types'; // 🆕 Importar tipos
+import { toast } from 'sonner'; 
 
-// Interface para tipar os dados que vêm do Supabase (substitui o 'any')
+// Interface para tipar os dados que vêm do Supabase
 interface PedidoSupabase {
   id: string;
   numero: string;
-  status: string;
-  sms_otp: string;
+  status: OrderStatus; // 🆕 Tipagem estrita
+  sms_otp: SmsStatus;  // 🆕 Tipagem estrita
   codigo_recebido: string | null;
   pais: string;
   servico: string;
@@ -26,6 +28,8 @@ export default function MeusPedidosPage() {
   const [pedidos, setPedidos] = useState<Order[]>([]);
 
   useEffect(() => {
+    let canal: RealtimeChannel | null = null; // 🆕 Substituído 'any' por RealtimeChannel
+
     const carregarPedidos = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
@@ -50,24 +54,54 @@ export default function MeusPedidosPage() {
       if (error) {
         console.error('Erro ao buscar pedidos:', error);
       } else if (data) {
-        // CORREÇÃO AQUI: Substituído 'any' por 'PedidoSupabase'
         const pedidosFormatados = data.map((p: PedidoSupabase) => ({
           id: p.id,
           numero: p.numero,
           status: p.status,
           sms_otp: p.sms_otp,
-          codigo_recebido: p.codigo_recebido,
+          codigo_recebido: p.codigo_recebido || undefined,
           pais: p.pais,
           servico: p.servico,
           valor: p.valor,
-          // Data formatada para mostrar ao utilizador
           data_criacao: new Date(p.data_criacao).toLocaleString('pt-MZ'),
-          // Data original ISO para os cálculos do contador
           data_criacao_raw: p.data_criacao,
         }));
         setPedidos(pedidosFormatados as Order[]);
       }
       setLoading(false);
+
+      // 🆕 LIGAR O TEMPO REAL (SUPABASE REALTIME)
+      canal = supabase
+        .channel('alteracoes-pedidos')
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'orders', filter: `user_id=eq.${session.user.id}` },
+          (payload) => {
+            const pedidoAtualizado = payload.new as PedidoSupabase;
+            
+            // Se o SMS chegou, avisa o utilizador com um toast!
+            if (pedidoAtualizado.sms_otp === 'Sucesso') {
+              toast.success(`SMS Recebido para ${pedidoAtualizado.numero}! Código: ${pedidoAtualizado.codigo_recebido}`);
+            } else if (pedidoAtualizado.status === 'Cancelado') {
+              toast.info(`O pedido ${pedidoAtualizado.numero} foi cancelado.`);
+            }
+
+            // Atualiza a tabela visualmente na hora (removemos os 'as any' aqui)
+            setPedidos((prev) =>
+              prev.map((p) =>
+                p.id === pedidoAtualizado.id
+                  ? {
+                      ...p,
+                      status: pedidoAtualizado.status,
+                      sms_otp: pedidoAtualizado.sms_otp,
+                      codigo_recebido: pedidoAtualizado.codigo_recebido || undefined,
+                    }
+                  : p
+              )
+            );
+          }
+        )
+        .subscribe();
     };
 
     carregarPedidos();
@@ -84,12 +118,15 @@ export default function MeusPedidosPage() {
         const dados = await resposta.json();
         
         if (dados.reembolsados > 0) {
-          window.location.reload();
+          toast.warning(`${dados.reembolsados} pedido(s) expiraram e foram reembolsados.`);
         }
       }
     }, 60000);
 
-    return () => clearInterval(intervalo);
+    return () => {
+      clearInterval(intervalo);
+      if (canal) supabase.removeChannel(canal); // 🆕 Limpar o canal ao sair da página
+    };
   }, [router]);
 
   return (
