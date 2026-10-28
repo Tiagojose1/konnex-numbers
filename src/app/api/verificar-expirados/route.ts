@@ -81,6 +81,7 @@ export async function POST(request: Request) {
     });
 
   } catch (error) {
+    console.error('Erro ao verificar expirados:', error); // <-- Correção aqui
     return NextResponse.json({ error: 'Erro interno.' }, { status: 500 });
   }
 }

@@ -37,7 +37,7 @@ export default function RegistoPage() {
       setLoading(false); return;
     }
     
-    window.location.href = '/dashboard';
+    window.location.href = '/verificacao';
   };
 
   const inputClass = "w-full p-4 bg-slate-900 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all";

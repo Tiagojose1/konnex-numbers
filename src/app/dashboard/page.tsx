@@ -48,7 +48,12 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-24">
+     <div className="min-h-screen bg-slate-50 pb-24">
+      
+      {/* BANNER DE SUCESSO (Opcional) */}
+      <div className="bg-green-100 border-b border-green-200 text-green-800 text-center py-2 text-sm font-medium">
+        ✅ Número verificado com sucesso!
+      </div>
       
       {/* ===== CABEÇALHO SUPERIOR ===== */}
       <header className="bg-[#0f172a] sticky top-0 z-50 px-4 py-3 shadow-lg">

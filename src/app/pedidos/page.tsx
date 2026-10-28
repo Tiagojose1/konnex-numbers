@@ -7,6 +7,19 @@ import { OrdersTable } from '@/components/OrdersTable';
 import { supabase } from '@/lib/supabase';
 import { Order } from '@/types';
 
+// Interface para tipar os dados que vêm do Supabase (substitui o 'any')
+interface PedidoSupabase {
+  id: string;
+  numero: string;
+  status: string;
+  sms_otp: string;
+  codigo_recebido: string | null;
+  pais: string;
+  servico: string;
+  valor: number;
+  data_criacao: string;
+}
+
 export default function MeusPedidosPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -37,7 +50,8 @@ export default function MeusPedidosPage() {
       if (error) {
         console.error('Erro ao buscar pedidos:', error);
       } else if (data) {
-        const pedidosFormatados = data.map((p: any) => ({
+        // CORREÇÃO AQUI: Substituído 'any' por 'PedidoSupabase'
+        const pedidosFormatados = data.map((p: PedidoSupabase) => ({
           id: p.id,
           numero: p.numero,
           status: p.status,
@@ -51,7 +65,7 @@ export default function MeusPedidosPage() {
           // Data original ISO para os cálculos do contador
           data_criacao_raw: p.data_criacao,
         }));
-        setPedidos(pedidosFormatados);
+        setPedidos(pedidosFormatados as Order[]);
       }
       setLoading(false);
     };

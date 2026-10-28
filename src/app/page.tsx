@@ -32,7 +32,7 @@ export default function LandingPage() {
     const t1 = setTimeout(() => setStatusText('A configurar canais de comunicação...'), 8000);
     const t2 = setTimeout(() => setStatusText('A preparar números virtuais...'), 18000);
     const t3 = setTimeout(() => setStatusText('A ativar o canal seguro...'), 28000);
-    const t4 = setTimeout(() => setStatusText('Quase pronto...'), 36000);
+    const t4 = setTimeout(() => setStatusText('Quase pronto para uso...'), 36000);
 
     const progressTimer = setInterval(() => {
       setProgress((prev) => {

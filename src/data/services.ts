@@ -24,8 +24,8 @@ export const services: Service[] = [
   service('whatsapp', 'WhatsApp', 'social'),
   service('telegram', 'Telegram', 'social'),
   service('facebook', 'Facebook', 'social'),
-  service('instagram', 'Instagram', 'social'),
-  service('tiktok', 'TikTok', 'social'),
+  service('instagram', 'Instagram & Threads', 'social'),
+  service('tiktok', 'TikTok / Douyin', 'social'),
   service('discord', 'Discord', 'social'),
   service('snapchat', 'Snapchat', 'social'),
   service('twitter', 'X (Twitter)', 'social', 'x'),
@@ -44,6 +44,12 @@ export const services: Service[] = [
   service('redbook', 'RED / Xiaohongshu', 'social'),
   service('tencentqq', 'Tencent QQ', 'social'),
   service('bigo', 'BIGO LIVE', 'social'),
+  service('signal', 'Signal', 'social'),
+  service('truecaller', 'Truecaller', 'social'),
+  service('clubhouse', 'Clubhouse', 'social'),
+  service('bumble', 'Bumble', 'social'),
+  service('tantan', 'Tantan', 'social'),
+  service('michat', 'MiChat', 'social'),
 
   // ─── TECNOLOGIA E CONTAS ───
   service('google', 'Google / Gmail / YouTube', 'technology'),
@@ -57,14 +63,24 @@ export const services: Service[] = [
   service('naver', 'NAVER', 'technology'),
   service('zoho', 'Zoho', 'technology'),
   service('openai', 'OpenAI / ChatGPT', 'technology'),
+  service('claude', 'Claude AI', 'technology', 'anthropic'),
+  service('protonmail', 'ProtonMail', 'technology', 'protonmail'),
+  service('twilio', 'Twilio', 'technology'),
+  service('vercel', 'Vercel', 'technology'),
+  service('gitlab', 'GitLab', 'technology'),
+  service('github', 'GitHub', 'technology'),
+  service('medium', 'Medium', 'technology'),
+  service('quora', 'Quora', 'technology'),
 
   // ─── BANCOS E FINANÇAS (LOCAIS E GLOBAIS) ───
-  // Globais
   service('wise', 'Wise', 'finance'),
   service('paypal', 'PayPal', 'finance'),
   service('coinbase', 'Coinbase', 'finance'),
-  
-  // Brasil
+  service('binance', 'Binance', 'finance'),
+  service('kraken', 'Kraken', 'finance'),
+  service('revolut', 'Revolut', 'finance'),
+  service('payoneer', 'Payoneer', 'finance'),
+  service('skrill', 'Skrill', 'finance'),
   service('nubank', 'Nubank', 'bank'),
   service('itau', 'Itaú Unibanco', 'bank'),
   service('bradesco', 'Bradesco', 'bank'),
@@ -76,8 +92,6 @@ export const services: Service[] = [
   service('picpay', 'PicPay', 'bank'),
   service('pagbank', 'PagBank', 'bank'),
   service('mercadopago', 'Mercado Pago', 'bank'),
-
-  // Moçambique
   service('bci', 'BCI', 'bank'),
   service('bim', 'BIM', 'bank'),
   service('millenniumbim', 'Millennium bim', 'bank'),
@@ -85,44 +99,9 @@ export const services: Service[] = [
   service('absa_mz', 'Absa', 'bank', 'absa'),
   service('bancounico', 'Banco Único', 'bank'),
   service('moza', 'Moza Banco', 'bank'),
-
-  // Portugal
   service('millenniumbcp', 'Millennium BCP', 'bank'),
   service('novobanco', 'Novo Banco', 'bank'),
   service('cgd', 'Caixa Geral de Depósitos', 'bank'),
-  service('revolut', 'Revolut', 'bank'),
-
-  // África do Sul (Novos)
-  service('capitec', 'Capitec Bank', 'bank'),
-  service('fnb', 'FNB', 'bank'),
-  service('nedbank', 'Nedbank', 'bank'),
-
-  // Estados Unidos (Novos)
-  service('chase', 'Chase', 'bank'),
-  service('bankofamerica', 'Bank of America', 'bank'),
-  service('wellsfargo', 'Wells Fargo', 'bank'),
-  service('citi', 'Citi', 'bank'),
-
-  // Índia (Novos)
-  service('hdfc', 'HDFC Bank', 'bank'),
-  service('icici', 'ICICI Bank', 'bank'),
-  service('sbi', 'State Bank of India', 'bank'),
-
-  // Angola (Novos)
-  service('bai', 'BAI', 'bank'),
-  service('bfa', 'BFA', 'bank'),
-  service('bic_ao', 'BIC Angola', 'bank'),
-
-  // Nigéria (Novos)
-  service('accessbank', 'Access Bank', 'bank'),
-  service('gtbank', 'GTBank', 'bank'),
-  service('zenithbank', 'Zenith Bank', 'bank'),
-
-  // Reino Unido (Novos)
-  service('barclays', 'Barclays', 'bank'),
-  service('hsbc', 'HSBC', 'bank'),
-  service('lloyds', 'Lloyds Bank', 'bank'),
-  service('monzo', 'Monzo', 'bank'),
 
   // ─── COMPRAS ───
   service('amazon', 'Amazon', 'shopping'),
@@ -134,21 +113,45 @@ export const services: Service[] = [
   service('olx', 'OLX', 'shopping'),
   service('alibaba', 'Alibaba / Alipay', 'shopping', 'alibabadotcom'),
   service('jd', 'JD.com', 'shopping'),
+  service('lidl', 'Lidl', 'shopping'),
   service('flipkart', 'Flipkart', 'shopping'),
+  service('temu', 'Temu', 'shopping'),
+  service('etsy', 'Etsy', 'shopping'),
+  service('wish', 'Wish', 'shopping'),
+  service('vinted', 'Vinted', 'shopping'),
+  service('stockx', 'StockX', 'shopping'),
+  service('nike', 'Nike', 'shopping'),
+  service('adidas', 'Adidas', 'shopping'),
+  service('zara', 'Zara', 'shopping'),
+  service('carrefour', 'Carrefour', 'shopping'),
 
   // ─── JOGOS ───
   service('steam', 'Steam', 'games'),
   service('roblox', 'Roblox', 'games'),
   service('twitch', 'Twitch', 'games'),
   service('blizzard', 'Blizzard', 'games'),
+  service('epicgames', 'Epic Games', 'games'),
+  service('riotgames', 'Riot Games', 'games'),
+  service('ubisoft', 'Ubisoft', 'games'),
+  service('nintendo', 'Nintendo', 'games'),
+  service('playstation', 'PlayStation', 'games'),
+  service('xbox', 'Xbox', 'games'),
+  service('ea', 'EA Sports', 'games'),
+  service('pubg', 'PUBG', 'games'),
+  service('garena', 'Garena', 'games'),
+  service('hoyoverse', 'HoYoverse', 'games'),
+  service('supercell', 'Supercell', 'games'),
 
   // ─── TRANSPORTE ───
   service('uber', 'Uber', 'transport'),
   service('bolt', 'Bolt', 'transport'),
   service('blablacar', 'BlaBlaCar', 'transport'),
+  service('grab', 'Grab', 'transport'),
   service('didi', 'DiDi', 'transport'),
   service('lyft', 'Lyft', 'transport'),
   service('ola', 'Ola', 'transport'),
+  service('careem', 'Careem', 'transport'),
+  service('indrive', 'inDrive', 'transport'),
 
   // ─── ENTREGAS E RESTAURAÇÃO ───
   service('glovo', 'Glovo', 'delivery'),
@@ -159,25 +162,53 @@ export const services: Service[] = [
   service('ifood', 'iFood', 'delivery'),
   service('swiggy', 'Swiggy', 'delivery'),
   service('zomato', 'Zomato', 'delivery'),
+  service('doordash', 'DoorDash', 'delivery'),
+  service('deliveroo', 'Deliveroo', 'delivery'),
+  service('instacart', 'Instacart', 'delivery'),
+  service('kfc', 'KFC', 'delivery'),
+  service('pizzahut', 'Pizza Hut', 'delivery'),
+  service('dominos', 'Domino\'s Pizza', 'delivery', 'dominos'),
 
   // ─── VIAGENS ───
   service('airbnb', 'Airbnb', 'travel'),
   service('booking', 'Booking.com', 'travel', 'bookingdotcom'),
+  service('trip', 'Trip.com', 'travel'),
+  service('agoda', 'Agoda', 'travel'),
+  service('expedia', 'Expedia', 'travel'),
+  service('trivago', 'Trivago', 'travel'),
 
   // ─── ENTRETENIMENTO ───
   service('netflix', 'Netflix', 'entertainment'),
   service('spotify', 'Spotify', 'entertainment'),
+  service('disney', 'Disney+', 'entertainment'),
+  service('hbo', 'HBO Max', 'entertainment'),
+  service('primevideo', 'Prime Video', 'entertainment'),
+  service('youtube', 'YouTube Premium', 'entertainment'),
+  service('deezer', 'Deezer', 'entertainment'),
+  service('soundcloud', 'SoundCloud', 'entertainment'),
+  service('applemusic', 'Apple Music', 'entertainment'),
 
-  // ─── ENCONTROS ───
+  // ─── ENCONTROS (DATING) ───
   service('tinder', 'Tinder', 'dating'),
   service('badoo', 'Badoo', 'dating'),
   service('hinge', 'Hinge', 'dating'),
+  service('grindr', 'Grindr', 'dating'),
+  service('pof', 'Plenty of Fish', 'dating'),
+  service('meetic', 'Meetic', 'dating'),
+  service('muzz', 'Muzz', 'dating'),
+  service('loves', 'Loves', 'dating'),
 
   // ─── OUTROS E "QUALQUER SERVIÇO" ───
-  service('nike', 'Nike', 'other'),
+  service('reddit', 'Reddit', 'other'),
+  service('pinterest', 'Pinterest', 'other'),
+  service('fiverr', 'Fiverr', 'other'),
+  service('upwork', 'Upwork', 'other'),
+  service('freelancer', 'Freelancer', 'other'),
   service('cocacola', 'Coca-Cola', 'other'),
+  service('starbucks', 'Starbucks', 'other'),
+  service('nike_other', 'Nike (Loja)', 'other', 'nike'),
   
-  // 🌟 A OPÇÃO MÁGICA DE PESQUISA (Tem de ser o último)
+  // 🌟 A OPÇÃO MÁGICA DE PESQUISA (Mantém-se no final)
   { id: 'anyother', name: 'Qualquer Serviço (Pesquisar)', category: 'other', logo: 'https://cdn.simpleicons.org/amp' },
 ];
 
@@ -191,6 +222,8 @@ export const categories = [
   { id: 'transport', label: 'Transporte' },
   { id: 'delivery', label: 'Delivery' },
   { id: 'travel', label: 'Viagens' },
+  { id: 'entertainment', label: 'Entretenimento' },
+  { id: 'dating', label: 'Encontros' },
   { id: 'other', label: 'Outros' },
 ];
 
