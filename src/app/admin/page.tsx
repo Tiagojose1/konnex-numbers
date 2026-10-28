@@ -1,4 +1,3 @@
-/* eslint-disable @next/next/no-img-element */
 // src/app/admin/page.tsx
 'use client';
 
@@ -9,10 +8,38 @@ import { supabase } from '@/lib/supabase';
 import { formatarMoeda } from '@/lib/currencies';
 import { toast } from 'sonner';
 
+// 🆕 Definição dos Tipos para o Admin (Substituem os 'any')
+interface AdminUser {
+  id: string;
+  nome_completo: string;
+  saldo: string | number;
+  currency: string;
+  created_at: string;
+}
+
+interface AdminOrder {
+  id: string;
+  servico: string;
+  status: string;
+  valor: string | number;
+  profiles: { nome_completo: string } | null;
+}
+
+interface AdminData {
+  usuarios: AdminUser[];
+  pedidos: AdminOrder[];
+  metricas: {
+    totalUtilizadores: number;
+    totalSaldoEmCustodia: number;
+    receitaTotal: number;
+    totalPedidos: number;
+  };
+}
+
 export default function AdminPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [dados, setDados] = useState<any>(null);
+  const [dados, setDados] = useState<AdminData | null>(null); // 🆕 Substituído any por AdminData
 
   useEffect(() => {
     const carregarAdmin = async () => {
@@ -37,13 +64,14 @@ export default function AdminPage() {
 
         if (!resposta.ok) {
           toast.error(resultado.error || 'Acesso negado.');
-          router.push('/dashboard'); // Expulsa para o painel normal
+          router.push('/dashboard');
           return;
         }
 
         setDados(resultado);
 
-      } catch (error) {
+      } catch {
+        // 🆕 Removido o 'error' não utilizado
         toast.error('Erro ao ligar ao servidor.');
         router.push('/dashboard');
       } finally {
@@ -115,10 +143,11 @@ export default function AdminPage() {
                 </tr>
               </thead>
               <tbody>
-                {dados.usuarios.slice(0, 10).map((user: any) => (
+                {/* 🆕 Tipagem AdminUser em vez de any */}
+                {dados.usuarios.slice(0, 10).map((user: AdminUser) => (
                   <tr key={user.id} className="border-b border-slate-800 last:border-0">
                     <td className="px-4 py-3 font-medium text-white">{user.nome_completo}</td>
-                    <td className="px-4 py-3 text-cyan-400">{formatarMoeda(parseFloat(user.saldo), user.currency)}</td>
+                    <td className="px-4 py-3 text-cyan-400">{formatarMoeda(parseFloat(user.saldo as string), user.currency)}</td>
                     <td className="px-4 py-3 text-slate-500 text-xs">
                       {new Date(user.created_at).toLocaleDateString('pt-MZ')}
                     </td>
@@ -143,7 +172,8 @@ export default function AdminPage() {
                 </tr>
               </thead>
               <tbody>
-                {dados.pedidos.slice(0, 10).map((pedido: any) => (
+                {/* 🆕 Tipagem AdminOrder em vez de any */}
+                {dados.pedidos.slice(0, 10).map((pedido: AdminOrder) => (
                   <tr key={pedido.id} className="border-b border-slate-800 last:border-0">
                     <td className="px-4 py-3 font-medium text-white">{pedido.profiles?.nome_completo || 'Desconhecido'}</td>
                     <td className="px-4 py-3 text-slate-300">{pedido.servico}</td>
