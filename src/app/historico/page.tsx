@@ -30,15 +30,9 @@ export default function HistoricoPage() {
         return;
       }
 
-      // Buscar a moeda do utilizador
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('currency')
-        .eq('id', session.user.id)
-        .single();
+      const { data: profile } = await supabase.from('profiles').select('currency').eq('id', session.user.id).single();
       if (profile) setCurrency(profile.currency || 'MZN');
 
-      // Buscar as transações
       const { data, error } = await supabase
         .from('transactions')
         .select('*')
@@ -82,9 +76,7 @@ export default function HistoricoPage() {
                   </div>
                   <div>
                     <p className="font-semibold text-gray-800">{t.tipo}</p>
-                    <p className="text-xs text-gray-500">
-                      {t.metodo} • {new Date(t.data_criacao).toLocaleDateString('pt-MZ')}
-                    </p>
+                    <p className="text-xs text-gray-500">{t.metodo} • {new Date(t.data_criacao).toLocaleDateString('pt-MZ')}</p>
                   </div>
                 </div>
                 <div className="text-right">
@@ -105,21 +97,6 @@ export default function HistoricoPage() {
             </Link>
           </div>
         )}
-      </div>
-
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around py-3 px-4 shadow-lg md:hidden">
-        <Link href="/dashboard" className="flex flex-col items-center text-gray-400 hover:text-purple-600 transition-colors">
-          <span className="text-xl">🏠</span><span className="text-xs font-medium mt-1">Início</span>
-        </Link>
-        <Link href="/servicos" className="flex flex-col items-center text-gray-400 hover:text-purple-600 transition-colors">
-          <span className="text-xl">🌐</span><span className="text-xs font-medium mt-1">Serviços</span>
-        </Link>
-        <Link href="/saldo" className="flex flex-col items-center text-gray-400 hover:text-purple-600 transition-colors">
-          <span className="text-xl">💰</span><span className="text-xs font-medium mt-1">Saldo</span>
-        </Link>
-        <Link href="/perfil" className="flex flex-col items-center text-purple-600">
-          <span className="text-xl">👤</span><span className="text-xs font-medium mt-1">Perfil</span>
-        </Link>
       </div>
     </div>
   );

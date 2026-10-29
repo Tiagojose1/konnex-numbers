@@ -3,23 +3,23 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { RealtimeChannel } from '@supabase/supabase-js'; // 🆕 Importação correta
+import { RealtimeChannel } from '@supabase/supabase-js';
 import { OrdersTable } from '@/components/OrdersTable';
 import { supabase } from '@/lib/supabase';
-import { Order, OrderStatus, SmsStatus } from '@/types'; // 🆕 Importar tipos
-import { toast } from 'sonner'; 
+import { Order, OrderStatus, SmsStatus } from '@/types';
+import { toast } from 'sonner';
 
-// Interface para tipar os dados que vêm do Supabase
 interface PedidoSupabase {
   id: string;
   numero: string;
-  status: OrderStatus; // 🆕 Tipagem estrita
-  sms_otp: SmsStatus;  // 🆕 Tipagem estrita
+  status: OrderStatus;
+  sms_otp: SmsStatus;
   codigo_recebido: string | null;
   pais: string;
   servico: string;
   valor: number;
   data_criacao: string;
+  provider_name: string | null;
 }
 
 export default function MeusPedidosPage() {
@@ -28,7 +28,7 @@ export default function MeusPedidosPage() {
   const [pedidos, setPedidos] = useState<Order[]>([]);
 
   useEffect(() => {
-    let canal: RealtimeChannel | null = null; // 🆕 Substituído 'any' por RealtimeChannel
+    let canal: RealtimeChannel | null = null;
 
     const carregarPedidos = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -65,12 +65,13 @@ export default function MeusPedidosPage() {
           valor: p.valor,
           data_criacao: new Date(p.data_criacao).toLocaleString('pt-MZ'),
           data_criacao_raw: p.data_criacao,
+          provider_name: p.provider_name || undefined,
         }));
         setPedidos(pedidosFormatados as Order[]);
       }
       setLoading(false);
 
-      // 🆕 LIGAR O TEMPO REAL (SUPABASE REALTIME)
+      // Ligar o Tempo Real (Supabase Realtime)
       canal = supabase
         .channel('alteracoes-pedidos')
         .on(
@@ -79,14 +80,12 @@ export default function MeusPedidosPage() {
           (payload) => {
             const pedidoAtualizado = payload.new as PedidoSupabase;
             
-            // Se o SMS chegou, avisa o utilizador com um toast!
             if (pedidoAtualizado.sms_otp === 'Sucesso') {
               toast.success(`SMS Recebido para ${pedidoAtualizado.numero}! Código: ${pedidoAtualizado.codigo_recebido}`);
             } else if (pedidoAtualizado.status === 'Cancelado') {
               toast.info(`O pedido ${pedidoAtualizado.numero} foi cancelado.`);
             }
 
-            // Atualiza a tabela visualmente na hora (removemos os 'as any' aqui)
             setPedidos((prev) =>
               prev.map((p) =>
                 p.id === pedidoAtualizado.id
@@ -106,7 +105,7 @@ export default function MeusPedidosPage() {
 
     carregarPedidos();
 
-    // Verificar a cada 60 segundos se há pedidos expirados
+    // Verificar expirados a cada 60 segundos
     const intervalo = setInterval(async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
@@ -125,9 +124,42 @@ export default function MeusPedidosPage() {
 
     return () => {
       clearInterval(intervalo);
-      if (canal) supabase.removeChannel(canal); // 🆕 Limpar o canal ao sair da página
+      if (canal) supabase.removeChannel(canal);
     };
   }, [router]);
+
+  // 🆕 LOOP DE VERIFICAÇÃO DE SMS (A cada 5 segundos)
+  useEffect(() => {
+    const verificarSmsPendentes = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const pendentes = pedidos.filter(p => p.status === 'Aguardando' && p.provider_name);
+      
+      for (const pedido of pendentes) {
+        try {
+          await fetch('/api/verificar-sms', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              pedidoId: pedido.id,
+              userId: session.user.id // 🆕 Envia o userId para segurança
+            }),
+          });
+        } catch (err) {
+          console.error('A verificar SMS:', err);
+        }
+      }
+    };
+
+    const intervaloSms = setInterval(() => {
+      if (pedidos.some(p => p.status === 'Aguardando' && p.provider_name)) {
+        verificarSmsPendentes();
+      }
+    }, 5000);
+
+    return () => clearInterval(intervaloSms);
+  }, [pedidos]); // Executa sempre que a lista de pedidos atualiza
 
   return (
     <div className="p-8 max-w-7xl mx-auto min-h-screen bg-gray-50">

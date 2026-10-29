@@ -1,5 +1,4 @@
 // src/types/index.ts
-
 export type OrderStatus = 'Aguardando' | 'Concluído' | 'Cancelado' | 'Reembolsado';
 export type SmsStatus = 'Pendente' | 'Sucesso' | 'Expirado';
 
@@ -14,4 +13,6 @@ export interface Order {
   valor: number;
   data_criacao: string;
   data_criacao_raw: string;
+  provider_name?: string;      // 🆕 Adicionado
+  provider_order_id?: string;  // 🆕 Adicionado
 }
