@@ -7,6 +7,10 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+// 🆕 Limpa espaços e quebras de linha das chaves
+const fivesimKey = process.env.FIVESIM_API_KEY?.trim();
+const smspoolKey = process.env.SMSPOOL_API_KEY?.trim();
+
 export async function POST(request: Request) {
   try {
     const { userId, servico, pais, preco, isCustom } = await request.json();
@@ -31,7 +35,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Saldo insuficiente.' }, { status: 400 });
     }
 
-    // 3. Deduzir Saldo (Reserva o dinheiro enquanto compra)
+    // 3. Deduzir Saldo
     const novoSaldo = saldoAtual - valorCompra;
     await supabaseAdmin.from('profiles').update({ saldo: novoSaldo }).eq('id', userId);
 
@@ -39,21 +43,19 @@ export async function POST(request: Request) {
     let numeroVirtual = '';
     let idFornecedor = null;
     let fornecedorUsado = '';
-    let erroCompra = null;
 
     try {
-      // Mapeamento de países para a API (ex: 'Moçambique' -> 'mz')
       const mapaPaises: Record<string, string> = { 'Moçambique': 'MZ', 'Brasil': 'BR', 'Portugal': 'PT', 'Estados Unidos': 'US' };
       const paisCod = mapaPaises[pais] || 'MZ';
 
-      if (servico === 'WhatsApp' && process.env.FIVESIM_API_KEY) {
+      if (servico === 'WhatsApp' && fivesimKey) {
         // --- COMPRA NA 5SIM ---
         fornecedorUsado = '5sim';
         const pais5sim = pais.toLowerCase() === 'moçambique' ? 'mozambique' : pais.toLowerCase() === 'brasil' ? 'brazil' : 'portugal';
         
         const res = await fetch(`https://5sim.net/v1/user/buy/activation/${pais5sim}/any/whatsapp`, {
           method: 'GET',
-          headers: { 'Authorization': `Bearer ${process.env.FIVESIM_API_KEY}`, 'Accept': 'application/json' }
+          headers: { 'Authorization': `Bearer ${fivesimKey}`, 'Accept': 'application/json' }
         });
         
         const data = await res.json();
@@ -62,14 +64,14 @@ export async function POST(request: Request) {
         numeroVirtual = data.phone;
         idFornecedor = data.id.toString();
 
-      } else if (process.env.SMSPOOL_API_KEY) {
+      } else if (smspoolKey) {
         // --- COMPRA NA SMSPOOL ---
         fornecedorUsado = 'smspool';
         const res = await fetch('https://api.smspool.net/purchase/sms', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: new URLSearchParams({
-            key: process.env.SMSPOOL_API_KEY,
+            key: smspoolKey,
             country: paisCod,
             service: servico.toLowerCase().replace(' ', '')
           })
@@ -86,7 +88,6 @@ export async function POST(request: Request) {
       }
 
     } catch (error: any) {
-      // Se o fornecedor falhar, DEVOLVE O DINHEIRO ao utilizador
       await supabaseAdmin.from('profiles').update({ saldo: saldoAtual }).eq('id', userId);
       return NextResponse.json({ error: `Erro no fornecedor: ${error.message}` }, { status: 500 });
     }
