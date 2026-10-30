@@ -7,7 +7,6 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// 🆕 Limpa espaços e quebras de linha das chaves
 const fivesimKey = process.env.FIVESIM_API_KEY?.trim();
 const smspoolKey = process.env.SMSPOOL_API_KEY?.trim();
 
@@ -15,7 +14,7 @@ export async function POST(request: Request) {
   try {
     const { userId, servico, pais, preco, isCustom } = await request.json();
 
-    // 1. Rate Limiting (Anti-Spam)
+    // 1. Rate Limiting
     const trintaSegundosAtras = new Date(Date.now() - 30000).toISOString();
     const { data: ultimoPedido } = await supabaseAdmin
       .from('orders').select('id').eq('user_id', userId).gte('data_criacao', trintaSegundosAtras).limit(1);
@@ -45,28 +44,41 @@ export async function POST(request: Request) {
     let fornecedorUsado = '';
 
     try {
-      const mapaPaises: Record<string, string> = { 'Moçambique': 'MZ', 'Brasil': 'BR', 'Portugal': 'PT', 'Estados Unidos': 'US' };
-      const paisCod = mapaPaises[pais] || 'MZ';
+      const mapaPaises: Record<string, string> = { 
+        'Moçambique': 'mozambique', 
+        'Brasil': 'brazil', 
+        'Portugal': 'portugal',
+        'África do Sul': 'southafrica',
+        'Estados Unidos': 'usa'
+      };
+      const paisApi = mapaPaises[pais] || 'mozambique';
 
       if (servico === 'WhatsApp' && fivesimKey) {
-        // --- COMPRA NA 5SIM ---
         fornecedorUsado = '5sim';
-        const pais5sim = pais.toLowerCase() === 'moçambique' ? 'mozambique' : pais.toLowerCase() === 'brasil' ? 'brazil' : 'portugal';
         
-        const res = await fetch(`https://5sim.net/v1/user/buy/activation/${pais5sim}/any/whatsapp`, {
+        const res = await fetch(`https://5sim.net/v1/user/buy/activation/${paisApi}/any/whatsapp`, {
           method: 'GET',
           headers: { 'Authorization': `Bearer ${fivesimKey}`, 'Accept': 'application/json' }
         });
         
-        const data = await res.json();
+        const textoResposta = await res.text();
+        let data;
+
+        try {
+          data = JSON.parse(textoResposta);
+        } catch {
+          throw new Error(textoResposta);
+        }
+
         if (!res.ok) throw new Error(data.message || 'Erro na 5SIM');
         
         numeroVirtual = data.phone;
         idFornecedor = data.id.toString();
 
       } else if (smspoolKey) {
-        // --- COMPRA NA SMSPOOL ---
         fornecedorUsado = 'smspool';
+        const paisCod = pais === 'Moçambique' ? 'MZ' : pais === 'Brasil' ? 'BR' : pais === 'Portugal' ? 'PT' : pais === 'África do Sul' ? 'ZA' : 'US';
+        
         const res = await fetch('https://api.smspool.net/purchase/sms', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -77,7 +89,15 @@ export async function POST(request: Request) {
           })
         });
 
-        const data = await res.json();
+        const textoResposta = await res.text();
+        let data;
+
+        try {
+          data = JSON.parse(textoResposta);
+        } catch {
+          throw new Error(textoResposta);
+        }
+
         if (!res.ok || data.success === 0) throw new Error(data.message || 'Erro na SMSPool');
 
         numeroVirtual = data.number;
@@ -87,9 +107,13 @@ export async function POST(request: Request) {
         throw new Error('Nenhum fornecedor de SMS configurado.');
       }
 
-    } catch (error: any) {
+    } catch (error: unknown) { // 🆕 Substituído 'any' por 'unknown'
+      // Devolve o dinheiro ao utilizador
       await supabaseAdmin.from('profiles').update({ saldo: saldoAtual }).eq('id', userId);
-      return NextResponse.json({ error: `Erro no fornecedor: ${error.message}` }, { status: 500 });
+      
+      // 🆕 Verificação segura do tipo de erro
+      const mensagemErro = error instanceof Error ? error.message : String(error);
+      return NextResponse.json({ error: `Erro no fornecedor: ${mensagemErro}` }, { status: 500 });
     }
 
     // 5. Criar Pedido na Base de Dados
@@ -126,8 +150,9 @@ export async function POST(request: Request) {
       novoSaldo: novoSaldo 
     });
 
-  } catch (error) {
+  } catch (error: unknown) { // 🆕 Substituído 'any' no catch principal também
     console.error(error);
-    return NextResponse.json({ error: 'Erro interno do servidor.' }, { status: 500 });
+    const mensagemErro = error instanceof Error ? error.message : 'Erro interno do servidor.';
+    return NextResponse.json({ error: mensagemErro }, { status: 500 });
   }
 }
