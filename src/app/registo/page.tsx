@@ -4,70 +4,108 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
-import { COUNTRY_TO_CURRENCY } from '@/lib/currencies';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+import { countries, Country } from '@/data/countries'; // 🆕 Importar a lista de países
 
 export default function RegistoPage() {
+  const router = useRouter();
+  
+  // Dados do Formulário
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
-  const [telefone, setTelefone] = useState('');
-  const [paisTelefone, setPaisTelefone] = useState('Moçambique');
+  const [dataNascimento, setDataNascimento] = useState('');
+  const [genero, setGenero] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [captcha, setCaptcha] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [mensagem, setMensagem] = useState('');
+
+  // 🆕 Estado do País Selecionado
+  const [paisSelecionado, setPaisSelecionado] = useState<Country>(
+    countries.find(c => c.id === 'mz') || countries[0] // Padrão: Moçambique
+  );
+  const [telefone, setTelefone] = useState('');
+
+  // 🆕 Estado do Modal de Países
+  const [modalPaisAberto, setModalPaisAberto] = useState(false);
+  const [pesquisaPais, setPesquisaPais] = useState('');
+
+  // Filtrar países pela pesquisa
+  const paisesFiltrados = countries.filter(c => 
+    c.name.toLowerCase().includes(pesquisaPais.toLowerCase()) || 
+    c.code.includes(pesquisaPais)
+  );
+
+  // 🆕 Quando o utilizador escolhe um país no modal
+  const handleSelecionarPais = (pais: Country) => {
+    setPaisSelecionado(pais);
+    setModalPaisAberto(false);
+    setPesquisaPais(''); // Limpa a pesquisa
+  };
 
   const handleRegisto = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!captcha) { setMensagem('Por favor, confirme que não é um robô.'); return; }
-    if (password !== confirmPassword) { setMensagem('As palavras-passe não coincidem.'); return; }
+    
+    if (!captcha) return toast.error('Por favor, confirme que não é um robô.');
+    if (password !== confirmPassword) return toast.error('As palavras-passe não coincidem.');
+    if (!dataNascimento || !genero) return toast.error('Por favor, preencha todos os dados obrigatórios.');
 
     setLoading(true);
-    setMensagem('');
-    const moedaEscolhida = COUNTRY_TO_CURRENCY[paisTelefone] || 'MZN';
+    const toastId = toast.loading('A criar a sua conta...');
+
+    // A moeda é definida automaticamente com base no país escolhido
+    const moedaEscolhida = paisSelecionado.currency;
 
     const { data, error } = await supabase.auth.signUp({
-      email, password,
-      options: { data: { nome_completo: nome, telefone, currency: moedaEscolhida } }
+      email, 
+      password,
+      options: { 
+        data: { 
+          nome_completo: nome, 
+          telefone: `${paisSelecionado.code} ${telefone}`, // Junta o DDI ao número
+          currency: moedaEscolhida,
+          data_nascimento: dataNascimento,
+          pais_residencia: paisSelecionado.name, // 🆕 Preenchido automaticamente
+          genero: genero
+        } 
+      }
     });
 
-    if (error) { setMensagem(`Erro: ${error.message}`); setLoading(false); return; }
-    if (data.user && data.session === null) {
-      setMensagem('Conta criada! Verifique o seu e-mail para confirmar.');
-      setLoading(false); return;
+    if (error) {
+      toast.error(`Erro: ${error.message}`, { id: toastId });
+      setLoading(false); 
+      return; 
     }
     
-    window.location.href = '/verificacao';
+    if (data.user && data.session === null) {
+      toast.success('Conta criada! Verifique o seu e-mail.', { id: toastId });
+      setLoading(false); 
+      return;
+    }
+    
+    toast.success('Conta criada com sucesso!', { id: toastId });
+    window.location.href = '/dashboard';
   };
 
   const inputClass = "w-full p-4 bg-slate-900 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all";
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 font-sans">
-      <div className="max-w-md w-full">
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 font-sans py-10">
+      <div className="max-w-md w-full bg-slate-900 p-8 rounded-2xl shadow-2xl border border-slate-800">
         
-        {/* GLOBO A GIRAR (Em vez do logo estático) */}
         <div className="text-center mb-8">
-          <div className="relative flex justify-center mb-4">
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-violet-600 rounded-full blur-3xl brilho-pulsante"></div>
-            <img 
-              src="/globo.png" 
-              alt="Globo Konnex" 
-              className="w-20 h-20 relative z-10 globo-girando"
-            />
-          </div>
-          
           <h1 className="text-3xl font-extrabold tracking-tight mb-2">
             <span className="text-white">Konnex</span>
             <span className="text-cyan-400 ml-2">Numbers</span>
           </h1>
-          <p className="text-slate-400 text-sm">Crie sua conta e comece a usar.</p>
+          <p className="text-slate-400 text-sm">Crie sua conta para começar.</p>
         </div>
 
         <form onSubmit={handleRegisto} className="space-y-4">
           <div>
-            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Nome ou Empresa</label>
-            <input type="text" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Seu nome" className={inputClass} required />
+            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Nome Completo</label>
+            <input type="text" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Seu nome completo" className={inputClass} required />
           </div>
 
           <div>
@@ -75,19 +113,40 @@ export default function RegistoPage() {
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seuemail@exemplo.com" className={inputClass} required />
           </div>
 
+          {/* 🆕 Campo de Telefone com Seletor de Países */}
           <div>
-            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Telefone</label>
+            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Número de Telefone</label>
             <div className="flex gap-2">
-              <select value={paisTelefone} onChange={(e) => setPaisTelefone(e.target.value)} className="p-4 bg-slate-900 border border-slate-800 rounded-xl text-white outline-none w-2/5 focus:ring-2 focus:ring-cyan-500">
-                <option value="Moçambique">🇲🇿 +258</option>
-                <option value="Brasil">🇧🇷 +55</option>
-                <option value="Portugal">🇵🇹 +351</option>
-                <option value="África do Sul">🇿🇦 +27</option>
-                <option value="Angola">🇦🇴 +244</option>
-                <option value="Estados Unidos">🇺🇸 +1</option>
-                <option value="Reino Unido">🇬🇧 +44</option>
+              
+              {/* Botão que abre o Modal de Países */}
+              <button 
+                type="button"
+                onClick={() => setModalPaisAberto(true)}
+                className="flex items-center gap-2 p-4 bg-slate-800 border border-slate-700 rounded-xl text-white outline-none w-[120px] hover:border-cyan-500 transition-colors"
+              >
+                <span className="text-xl">{paisSelecionado.flag}</span>
+                <span className="text-sm font-bold">{paisSelecionado.code}</span>
+              </button>
+
+              <input type="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="84XXXXXXX" className={`${inputClass} flex-1`} required />
+            </div>
+            {/* 🆕 Mostra o país de residência inferido automaticamente */}
+            <p className="text-xs text-slate-500 mt-1">País de residência: <span className="text-cyan-400 font-bold">{paisSelecionado.name}</span></p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Data Nasc.</label>
+              <input type="date" value={dataNascimento} onChange={(e) => setDataNascimento(e.target.value)} className={inputClass} required />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Género</label>
+              <select value={genero} onChange={(e) => setGenero(e.target.value)} className="w-full p-4 bg-slate-900 border border-slate-800 rounded-xl text-white outline-none focus:ring-2 focus:ring-cyan-500" required>
+                <option value="" disabled>Selecione</option>
+                <option value="Masculino">Masculino</option>
+                <option value="Feminino">Feminino</option>
+                <option value="Outro">Outro</option>
               </select>
-              <input type="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="84XXXXXXX" className={`${inputClass} w-3/5`} required />
             </div>
           </div>
 
@@ -104,28 +163,76 @@ export default function RegistoPage() {
           <div className="flex items-center gap-3 bg-white p-4 rounded-xl mt-4">
             <input type="checkbox" checked={captcha} onChange={(e) => setCaptcha(e.target.checked)} className="w-6 h-6 text-violet-600 rounded border-gray-300 focus:ring-violet-500" />
             <span className="text-slate-800 font-medium text-sm">Não sou um robô</span>
-            <div className="ml-auto text-right">
-              <span className="text-xs text-gray-400 block">reCAPTCHA</span>
-            </div>
           </div>
 
-          <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-500 hover:to-cyan-400 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-cyan-500/20 disabled:opacity-50 mt-4">
-            {loading ? 'A criar conta...' : 'Criar Conta'}
+          <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-500 hover:to-cyan-400 text-white font-bold py-4 rounded-xl transition-all shadow-lg disabled:opacity-50 mt-4">
+            {loading ? 'A criar conta...' : 'CRIAR CONTA'}
           </button>
         </form>
 
-        {mensagem && (
-          <div className={`mt-4 p-4 rounded-xl text-sm text-center border ${mensagem.includes('Erro') || mensagem.includes('não coincidem') ? 'bg-red-900/40 text-red-400 border-red-800' : 'bg-blue-900/40 text-blue-400 border-blue-800'}`}>
-            {mensagem}
-          </div>
-        )}
-
         <div className="mt-6 text-center">
-          <Link href="/login" className="text-sm text-cyan-400 hover:text-cyan-300 font-medium transition-colors">
+          <Link href="/login" className="text-sm text-cyan-400 hover:text-cyan-300 font-medium">
             Já tem conta? Entre aqui
           </Link>
         </div>
       </div>
+
+      {/* 🆕 MODAL DE SELEÇÃO DE PAÍS COM LUPA DE PESQUISA */}
+      {modalPaisAberto && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[100] backdrop-blur-sm">
+          <div className="bg-white w-full max-w-md rounded-2xl flex flex-col max-h-[80vh] overflow-hidden shadow-2xl">
+            
+            {/* Cabeçalho do Modal */}
+            <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
+              <h3 className="font-bold text-gray-800">Selecione o País</h3>
+              <button onClick={() => setModalPaisAberto(false)} className="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+            </div>
+
+            {/* Barra de Pesquisa (Lupa) */}
+            <div className="p-4 bg-white border-b border-gray-100">
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+                <input 
+                  type="text" 
+                  placeholder="Pesquisar país..." 
+                  value={pesquisaPais}
+                  onChange={(e) => setPesquisaPais(e.target.value)}
+                  className="w-full bg-gray-100 text-gray-800 p-3 pl-10 rounded-lg outline-none focus:ring-2 focus:ring-cyan-500"
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            {/* Lista de Países com Scroll */}
+            <div className="flex-1 overflow-y-auto p-2">
+              {paisesFiltrados.length > 0 ? (
+                paisesFiltrados.map((pais) => (
+                  <button
+                    key={pais.id}
+                    onClick={() => handleSelecionarPais(pais)}
+                    className="w-full flex items-center justify-between p-3 hover:bg-gray-100 rounded-lg transition-colors text-left"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">{pais.flag}</span>
+                      <span className="font-medium text-gray-800">{pais.name}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-500 font-mono">{pais.code}</span>
+                      {paisSelecionado.id === pais.id && (
+                        <span className="text-cyan-600 font-bold">✓</span>
+                      )}
+                    </div>
+                  </button>
+                ))
+              ) : (
+                <div className="p-4 text-center text-gray-500">
+                  Nenhum país encontrado.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
