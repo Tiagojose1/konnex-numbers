@@ -25,6 +25,7 @@ export default function ApoioPage() {
   const [historico, setHistorico] = useState<Mensagem[]>([]);
   const [ticketId, setTicketId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [abrindoChat, setAbrindoChat] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -40,56 +41,76 @@ export default function ApoioPage() {
     faq.resposta.toLowerCase().includes(pesquisaFaq.toLowerCase())
   );
 
+  // Auto-scroll para a última mensagem
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [historico, chatAberto]);
 
-  // 🆕 Iniciar Chat (Criar ou retomar Ticket)
+  // Iniciar ou retomar o Chat
   const abrirChat = async () => {
-    setChatAberto(true);
-    if (ticketId) return; // Se já tem ticket aberto, não faz nada
-
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-
-    // Procura um ticket aberto do utilizador
-    let { data: ticket } = await supabase
-      .from('support_tickets')
-      .select('*')
-      .eq('user_id', session.user.id)
-      .in('status', ['Bot', 'Aguardando Admin', 'Em Atendimento'])
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
-
-    // Se não existir, cria um novo
-    if (!ticket) {
-      const { data: novoTicket } = await supabase.from('support_tickets').insert({
-        user_id: session.user.id, status: 'Bot'
-      }).select().single();
-      ticket = novoTicket;
-      
-      // Mensagem de boas-vindas da Bete
-      await supabase.from('support_messages').insert({
-        ticket_id: ticket.id,
-        sender_type: 'bot',
-        message: 'Olá! Sou a Bete, a assistente virtual do Konnex Numbers. Como posso ajudar?'
-      });
+    if (chatAberto) {
+      setChatAberto(false);
+      return;
     }
 
-    setTicketId(ticket.id);
+    setAbrindoChat(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('Faça login para abrir o chat.');
+        return;
+      }
 
-    // Carregar mensagens antigas
-    const { data: msgs } = await supabase
-      .from('support_messages')
-      .select('*')
-      .eq('ticket_id', ticket.id)
-      .order('created_at', { ascending: true });
-      
-    if (msgs) setHistorico(msgs);
+      // Procura um ticket ativo do utilizador
+      let { data: ticket } = await supabase
+        .from('support_tickets')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .in('status', ['Bot', 'Aguardando Admin', 'Em Atendimento'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      // Se não existir, cria um novo
+      if (!ticket) {
+        const { data: novoTicket, error: erroTicket } = await supabase
+          .from('support_tickets')
+          .insert({ user_id: session.user.id, status: 'Bot' })
+          .select()
+          .single();
+
+        if (erroTicket) throw erroTicket;
+        ticket = novoTicket;
+        
+        // Mensagem de boas-vindas da Bete
+        await supabase.from('support_messages').insert({
+          ticket_id: ticket.id,
+          sender_type: 'bot',
+          message: 'Olá! Sou a Bete. Como posso ajudar?'
+        });
+      }
+
+      setTicketId(ticket.id);
+
+      // Carregar histórico de mensagens
+      const { data: msgs } = await supabase
+        .from('support_messages')
+        .select('*')
+        .eq('ticket_id', ticket.id)
+        .order('created_at', { ascending: true });
+        
+      if (msgs) setHistorico(msgs);
+      setChatAberto(true);
+
+    } catch (error) {
+      console.error(error);
+      toast.error('Erro ao abrir o chat. Tente novamente.');
+    } finally {
+      setAbrindoChat(false);
+    }
   };
 
-  // 🆕 Realtime: Ficar à escuta de respostas do Admin
+  // Realtime: Ouvir novas mensagens (do Admin, por exemplo)
   useEffect(() => {
     if (!ticketId) return;
 
@@ -98,7 +119,7 @@ export default function ApoioPage() {
       (payload) => {
         const novaMsg = payload.new as Mensagem;
         setHistorico(prev => {
-          if (prev.find(m => m.id === novaMsg.id)) return prev; // Evita duplicados
+          if (prev.find(m => m.id === novaMsg.id)) return prev;
           return [...prev, novaMsg];
         });
       }).subscribe();
@@ -106,48 +127,61 @@ export default function ApoioPage() {
     return () => { supabase.removeChannel(canal); };
   }, [ticketId]);
 
+  // 🆕 CORREÇÃO DO BOTÃO DE ENVIAR
   const handleEnviarMensagem = async () => {
     if (!mensagem.trim() && !imagemAnexada) return;
-    if (!ticketId) return;
+    
+    // Se o ticketId não estiver pronto (ainda a carregar), avisa
+    if (!ticketId) {
+      toast.info('A preparar o chat... Aguarde um segundo.');
+      return;
+    }
+    
     setLoading(true);
 
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
 
-    let urlImagem = null;
+      let urlImagem = null;
 
-    // Upload da imagem se existir
-    if (imagemAnexada) {
-      const fileExt = imagemAnexada.name.split('.').pop();
-      const fileName = `suporte-${Date.now()}.${fileExt}`;
-      
-      const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, imagemAnexada);
-      if (!uploadError) {
-        const { data } = supabase.storage.from('avatars').getPublicUrl(fileName);
-        urlImagem = data.publicUrl;
+      // Upload da imagem (se houver)
+      if (imagemAnexada) {
+        const fileExt = imagemAnexada.name.split('.').pop();
+        const fileName = `suporte-${Date.now()}.${fileExt}`;
+        const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, imagemAnexada);
+        
+        if (!uploadError) {
+          const { data } = supabase.storage.from('avatars').getPublicUrl(fileName);
+          urlImagem = data.publicUrl;
+        }
       }
+
+      const textoEnviado = mensagem;
+      setMensagem(''); // Limpa o input imediatamente para o utilizador ver que funcionou
+      setImagemAnexada(null);
+
+      // 1. Grava a mensagem do utilizador no banco
+      await supabase.from('support_messages').insert({
+        ticket_id: ticketId,
+        sender_type: 'user',
+        message: textoEnviado || null,
+        image_url: urlImagem
+      });
+
+      // 2. Chama a Bete para responder
+      await fetch('/api/apoio/bot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticketId, mensagemUser: textoEnviado })
+      });
+
+    } catch (error) {
+      console.error(error);
+      toast.error('Erro ao enviar a mensagem.');
+    } finally {
+      setLoading(false);
     }
-
-    const mensagemTexto = mensagem;
-    setMensagem('');
-    setImagemAnexada(null);
-
-    // 1. Grava a mensagem do utilizador
-    await supabase.from('support_messages').insert({
-      ticket_id: ticketId,
-      sender_type: 'user',
-      message: mensagemTexto,
-      image_url: urlImagem
-    });
-
-    // 2. Chama a Bete para responder
-    await fetch('/api/apoio/bot', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ticketId, mensagemUser: mensagemTexto })
-    });
-
-    setLoading(false);
   };
 
   return (
@@ -158,13 +192,16 @@ export default function ApoioPage() {
 
       <div className="max-w-2xl mx-auto p-4">
         
-        {/* Card da Bete */}
+        {/* 🆕 CARD DA BETE (Apenas Nome, Bio Removida) */}
         <div className="bg-gradient-to-r from-blue-700 to-purple-700 rounded-2xl p-6 shadow-lg mb-6 relative overflow-hidden text-white">
-          <div className="relative z-10 w-2/3">
-            <h4 className="text-xl font-extrabold mb-1">Assistente Virtual Bete</h4>
-            <p className="text-xs text-blue-100 mb-4">Inteligente, respeitosa e amigável. Tire dúvidas ou envie reclamações com fotos.</p>
-            <button onClick={abrirChat} className="bg-white text-blue-800 text-xs font-bold py-2 px-5 rounded-lg shadow-md">
-              {chatAberto ? 'Chat Aberto' : 'Iniciar Chat Integrado'}
+          <div className="relative z-10">
+            <h4 className="text-2xl font-extrabold mb-4">Bete</h4>
+            <button 
+              onClick={abrirChat} 
+              disabled={abrindoChat}
+              className="bg-white text-blue-800 text-sm font-bold py-2 px-6 rounded-lg shadow-md hover:bg-gray-100 transition-colors disabled:opacity-70"
+            >
+              {abrindoChat ? 'A carregar...' : (chatAberto ? 'Fechar Chat' : 'Iniciar Chat')}
             </button>
           </div>
           <div className="absolute right-2 bottom-2 text-7xl opacity-80">🤖</div>
@@ -177,13 +214,14 @@ export default function ApoioPage() {
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-xl">🤖</div>
                 <div>
-                  <h3 className="font-bold text-white text-sm">Bete & Equipa Konnex</h3>
+                  <h3 className="font-bold text-white text-sm">Bete</h3>
                   <p className="text-xs text-green-400">● Online</p>
                 </div>
               </div>
-              <button onClick={() => setChatAberto(false)} className="text-slate-400 hover:text-white">✕</button>
+              <button onClick={() => setChatAberto(false)} className="text-slate-400 hover:text-white text-xl">&times;</button>
             </div>
 
+            {/* Histórico de Mensagens */}
             <div className="flex-1 p-4 overflow-y-auto bg-slate-50 space-y-4">
               {historico.map((msg) => (
                 <div key={msg.id} className={`flex ${msg.sender_type === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -191,7 +229,7 @@ export default function ApoioPage() {
                     msg.sender_type === 'user' 
                       ? 'bg-blue-600 text-white rounded-br-none' 
                       : msg.sender_type === 'admin'
-                      ? 'bg-green-600 text-white rounded-bl-none shadow-sm' // Mensagem do Admin (Verde)
+                      ? 'bg-green-600 text-white rounded-bl-none shadow-sm' 
                       : 'bg-white border border-slate-200 text-slate-800 rounded-bl-none shadow-sm'
                   }`}>
                     {msg.sender_type === 'admin' && <span className="block text-[10px] font-bold text-green-200 mb-1">Admin (Humano)</span>}
@@ -204,30 +242,41 @@ export default function ApoioPage() {
               <div ref={chatEndRef} />
             </div>
 
+            {/* Input e Upload */}
             <div className="p-3 bg-white border-t border-slate-200 flex items-center gap-2">
-              <button onClick={() => fileInputRef.current?.click()} className="text-slate-400 hover:text-blue-600 p-2 text-xl">📎</button>
+              <button onClick={() => fileInputRef.current?.click()} className="text-slate-400 hover:text-blue-600 p-2 text-xl" title="Anexar foto">📎</button>
               <input type="file" accept="image/*" onChange={(e) => setImagemAnexada(e.target.files?.[0] || null)} className="hidden" ref={fileInputRef} />
               {imagemAnexada && <span className="text-xs text-blue-600 font-bold">Foto anexada!</span>}
               
               <input 
-                type="text" value={mensagem} onChange={(e) => setMensagem(e.target.value)}
-                placeholder="Escreva aqui..." className="flex-1 bg-slate-100 p-2 rounded-lg text-sm outline-none"
+                type="text" 
+                value={mensagem} 
+                onChange={(e) => setMensagem(e.target.value)}
+                placeholder="Escreva aqui..." 
+                className="flex-1 bg-slate-100 p-2 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"
                 onKeyDown={(e) => e.key === 'Enter' && handleEnviarMensagem()}
+                disabled={loading}
               />
-              <button onClick={handleEnviarMensagem} disabled={loading} className="bg-blue-600 text-white p-2 rounded-lg font-bold text-sm">Enviar</button>
+              <button 
+                onClick={handleEnviarMensagem} 
+                disabled={loading || (!mensagem.trim() && !imagemAnexada)} 
+                className="bg-blue-600 text-white p-2 px-4 rounded-lg font-bold text-sm hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              >
+                {loading ? '...' : 'Enviar'}
+              </button>
             </div>
           </div>
         )}
 
-        {/* FAQ (Mantido) */}
+        {/* FAQ */}
         <h2 className="text-lg font-bold text-slate-900 mb-4 mt-8">Perguntas mais frequentes</h2>
         <div className="relative mb-4">
-          <input type="text" placeholder="Pesquisar..." value={pesquisaFaq} onChange={(e) => setPesquisaFaq(e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl py-3 pl-4 outline-none" />
+          <input type="text" placeholder="Pesquisar..." value={pesquisaFaq} onChange={(e) => setPesquisaFaq(e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl py-3 pl-4 outline-none focus:ring-2 focus:ring-blue-500" />
         </div>
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
           {faqsFiltrados.map((faq, index) => (
             <div key={index} className="border-b border-slate-100 last:border-0">
-              <button onClick={() => setFaqAberto(faqAberto === index ? null : index)} className="w-full flex items-center justify-between p-5 text-left">
+              <button onClick={() => setFaqAberto(faqAberto === index ? null : index)} className="w-full flex items-center justify-between p-5 text-left hover:bg-slate-50">
                 <span className="font-bold text-slate-800 text-sm">{faq.pergunta}</span>
                 <span className="text-slate-400">{faqAberto === index ? '▲' : '▼'}</span>
               </button>
@@ -237,7 +286,24 @@ export default function ApoioPage() {
         </div>
       </div>
       
-      {/* Navegação inferior mantida igual... */}
+      {/* Navegação Inferior */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex justify-around py-2 px-2 shadow-lg z-50">
+        <Link href="/dashboard" className="flex flex-col items-center text-slate-400 p-2">
+          <span className="text-xl">🏠</span><span className="text-[10px] font-medium mt-1">Início</span>
+        </Link>
+        <Link href="/servicos" className="flex flex-col items-center text-slate-400 p-2">
+          <span className="text-xl">🌐</span><span className="text-[10px] font-medium mt-1">Serviços</span>
+        </Link>
+        <Link href="/saldo" className="flex flex-col items-center text-slate-400 p-2">
+          <span className="text-xl">💰</span><span className="text-[10px] font-medium mt-1">Saldo</span>
+        </Link>
+        <Link href="/apoio" className="flex flex-col items-center text-blue-600 p-2">
+          <span className="text-xl">🎧</span><span className="text-[10px] font-bold mt-1">Apoio</span>
+        </Link>
+        <Link href="/perfil" className="flex flex-col items-center text-slate-400 p-2">
+          <span className="text-xl">👤</span><span className="text-[10px] font-medium mt-1">Perfil</span>
+        </Link>
+      </div>
     </div>
   );
 }
