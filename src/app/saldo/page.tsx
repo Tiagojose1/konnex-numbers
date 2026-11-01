@@ -5,7 +5,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
-import { formatarMoeda, CURRENCY_SYMBOLS, converterParaMZN } from '@/lib/currencies';
+// 🆕 Importa a função correta: converterParaUSD
+import { formatarMoeda, CURRENCY_SYMBOLS, converterParaUSD } from '@/lib/currencies'; 
 
 export default function AdicionarSaldoPage() {
   const router = useRouter();
@@ -66,7 +67,8 @@ export default function AdicionarSaldoPage() {
       return;
     }
 
-    const valorEmMZN = converterParaMZN(valor, currency);
+    // 🆕 Converte o valor local (ex: 100 MT) para USD (para o backend guardar em USD)
+    const valorEmUSD = converterParaUSD(valor, currency);
 
     try {
       const resposta = await fetch('/api/adicionar-saldo', {
@@ -74,9 +76,9 @@ export default function AdicionarSaldoPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           userId: session.user.id, 
-          valor: valorEmMZN, 
+          valor: valorEmUSD, // 🆕 Envia em USD
           metodo: metodo,
-          telefone: telefone // <-- ESTA LINHA ESTAVA EM FALTA!
+          telefone: telefone
         }),
       });
       
@@ -85,14 +87,11 @@ export default function AdicionarSaldoPage() {
       if (dados.error) {
         setMensagem(`Erro: ${dados.error}`);
       } else {
-        // Se for M-Pesa ou e-Mola, avisamos para ir ao telemóvel
         if (metodo === 'M-Pesa' || metodo === 'e-Mola') {
-          setMensagem(dados.mensagem); // Ex: "Pedido enviado! Verifique o seu telemóvel e insira o PIN."
-          // NÃO mostramos o ecrã verde ainda. O dinheiro só entra depois do PIN.
+          setMensagem(dados.mensagem);
         } else {
-          // Se for Cartão de Crédito (que ainda é simulação)
           setMensagem('');
-          setDepositoConfirmado(valor);
+          setDepositoConfirmado(valor); // Mostra o valor local no ecrã verde
         }
       }
     } catch (error) {
@@ -141,6 +140,7 @@ export default function AdicionarSaldoPage() {
 
       <div className="bg-gradient-to-r from-purple-600 to-blue-500 rounded-2xl p-4 text-white shadow-lg mb-6">
         <p className="text-purple-100 text-xs font-medium">Saldo Atual</p>
+        {/* O formatarMoeda converte o valor em USD da base de dados para a moeda local do utilizador */}
         <h2 className="text-3xl font-bold">{formatarMoeda(saldoAtual, currency)}</h2>
       </div>
 

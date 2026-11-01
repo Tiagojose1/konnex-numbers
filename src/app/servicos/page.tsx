@@ -5,9 +5,9 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { toast } from 'sonner'; // 🆕 Importação do Sonner
+import { toast } from 'sonner'; 
 import { supabase } from '@/lib/supabase';
-import { converterParaMZN } from '@/lib/currencies';
+import { formatarMoeda } from '@/lib/currencies'; // 🆕 Importa formatarMoeda
 import { countries, getCountry, Country } from '@/data/countries';
 import { services, Service } from '@/data/services';
 import { getPrice } from '@/data/pricesByCountry';
@@ -62,9 +62,9 @@ export default function ServicosPage() {
         return;
     }
 
-    const valorEmMZN = converterParaMZN(precoInfo.price || 0, paisSelecionadoParaCompra.currency);
+    // 🆕 O preço já está em USD no pricesByCountry. Vamos enviá-lo diretamente.
+    const valorEmUSD = precoInfo.price || 0;
 
-    // 🆕 Mostra a notificação de loading
     const toastId = toast.loading("A processar o seu pedido...");
 
     const resposta = await fetch('/api/comprar', {
@@ -74,7 +74,7 @@ export default function ServicosPage() {
         userId: session.user.id,
         servico: servicoSelecionado.name,
         pais: paisSelecionadoParaCompra.name,
-        preco: valorEmMZN,
+        preco: valorEmUSD, // 🆕 Envia em USD
         isCustom: isCustom 
       }),
     });
@@ -82,11 +82,9 @@ export default function ServicosPage() {
     const dados = await resposta.json();
 
     if (dados.error) {
-      // 🆕 Notificação de erro
       toast.error(`Erro: ${dados.error}`, { id: toastId });
       setAProcessar(null);
     } else {
-      // 🆕 Notificação de sucesso
       toast.success(dados.mensagem, { id: toastId });
       router.push('/pedidos');
     }
@@ -168,7 +166,10 @@ export default function ServicosPage() {
                                   </div>
                                 </div>
                                 <div className="text-right flex items-center gap-4">
-                                  <span className="text-yellow-400 font-bold whitespace-nowrap">{precoInfo.price} {pais.currencySymbol}</span>
+                                  {/* 🆕 Formata o preço de USD para a moeda local */}
+                                  <span className="text-yellow-400 font-bold whitespace-nowrap">
+                                    {formatarMoeda(precoInfo.price || 0, pais.currency)}
+                                  </span>
                                   <button onClick={() => abrirModalCompra(servico, pais.id)} disabled={aProcessar === servico.id} className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-2 px-4 rounded transition-colors disabled:opacity-50">
                                     {aProcessar === servico.id ? '...' : 'OBTER'}
                                   </button>
@@ -197,7 +198,10 @@ export default function ServicosPage() {
                                   </div>
                                 </div>
                                 <div className="text-right flex items-center gap-4">
-                                  <span className="text-yellow-400 font-bold whitespace-nowrap">{precoInfo.price} {pais.currencySymbol}</span>
+                                  {/* 🆕 Formata o preço de USD para a moeda local */}
+                                  <span className="text-yellow-400 font-bold whitespace-nowrap">
+                                    {formatarMoeda(precoInfo.price || 0, pais.currency)}
+                                  </span>
                                   <button onClick={() => abrirModalCompra(servico, pais.id)} disabled={aProcessar === servico.id} className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-2 px-4 rounded transition-colors disabled:opacity-50">
                                     {aProcessar === servico.id ? '...' : 'OBTER'}
                                   </button>
@@ -236,7 +240,10 @@ export default function ServicosPage() {
                   <span className="block font-bold">Número Normal</span>
                   <span className="text-xs text-slate-400">Gerado pelo sistema</span>
                 </div>
-                <span className="text-yellow-400 font-bold">{getPrice(servicoSelecionado.id, paisSelecionadoParaCompra.id, 'random')?.price} {paisSelecionadoParaCompra.currencySymbol}</span>
+                <span className="text-yellow-400 font-bold">
+                  {/* 🆕 Formata o preço no modal */}
+                  {formatarMoeda(getPrice(servicoSelecionado.id, paisSelecionadoParaCompra.id, 'random')?.price || 0, paisSelecionadoParaCompra.currency)}
+                </span>
               </button>
 
               <button onClick={() => efetuarCompra(true)} className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white p-4 rounded-xl flex justify-between items-center transition-colors shadow-lg border border-purple-500">
@@ -244,7 +251,10 @@ export default function ServicosPage() {
                   <span className="block font-bold">Número VIP</span>
                   <span className="text-xs text-purple-200">Escolha os dígitos finais</span>
                 </div>
-                <span className="text-yellow-300 font-bold">{getPrice(servicoSelecionado.id, paisSelecionadoParaCompra.id, 'custom')?.price} {paisSelecionadoParaCompra.currencySymbol}</span>
+                <span className="text-yellow-300 font-bold">
+                  {/* 🆕 Formata o preço no modal */}
+                  {formatarMoeda(getPrice(servicoSelecionado.id, paisSelecionadoParaCompra.id, 'custom')?.price || 0, paisSelecionadoParaCompra.currency)}
+                </span>
               </button>
             </div>
 
