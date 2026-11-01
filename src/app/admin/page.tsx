@@ -10,15 +10,14 @@ interface Ticket {
   user_id: string;
   status: string;
   created_at: string;
-  profiles: {
-    nome_completo: string;
-  } | null;
+  profiles: { nome_completo: string; } | null;
 }
 
 interface Mensagem {
   id: string;
   sender_type: 'user' | 'bot' | 'admin';
   message: string | null;
+  translated_message: string | null;
   image_url: string | null;
   created_at: string;
 }
@@ -26,123 +25,68 @@ interface Mensagem {
 export default function AdminPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
-  
-  // Estados do Modal de Chat
   const [chatAberto, setChatAberto] = useState(false);
   const [ticketSelecionado, setTicketSelecionado] = useState<Ticket | null>(null);
   const [historico, setHistorico] = useState<Mensagem[]>([]);
   const [mensagem, setMensagem] = useState('');
   const [enviando, setEnviando] = useState(false);
-
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  // 1. Carregar os tickets
   const carregarTickets = async () => {
-    // 🆕 Correção no select: Forçamos a leitura da chave estrangeira exata
     const { data, error } = await supabase
       .from('support_tickets')
-      .select(`
-        *,
-        profiles!user_id (nome_completo)
-      `)
+      .select(`*, profiles!user_id (nome_completo)`)
       .in('status', ['Bot', 'Aguardando Admin', 'Em Atendimento'])
       .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('Erro ao carregar tickets:', error);
-      toast.error('Erro ao carregar tickets. Verifique as permissões RLS.');
-    } else if (data) {
-      setTickets(data as unknown as Ticket[]);
-    }
+    if (error) toast.error('Erro ao carregar tickets.');
+    else if (data) setTickets(data as unknown as Ticket[]);
     setLoading(false);
   };
 
   useEffect(() => {
     carregarTickets();
-
-    // Escutar novos tickets em tempo real
-    const canalTickets = supabase.channel('admin-tickets')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'support_tickets' }, () => {
-        carregarTickets();
-      })
-      .subscribe();
-
+    const canalTickets = supabase.channel('admin-tickets').on('postgres_changes', { event: '*', schema: 'public', table: 'support_tickets' }, () => carregarTickets()).subscribe();
     return () => { supabase.removeChannel(canalTickets); };
   }, []);
 
-  // 2. Abrir o chat do ticket
   const abrirTicket = async (ticket: Ticket) => {
     setTicketSelecionado(ticket);
     setChatAberto(true);
     setHistorico([]);
 
-    // Carregar mensagens
-    const { data } = await supabase
-      .from('support_messages')
-      .select('*')
-      .eq('ticket_id', ticket.id)
-      .order('created_at', { ascending: true });
-    
+    const { data } = await supabase.from('support_messages').select('*').eq('ticket_id', ticket.id).order('created_at', { ascending: true });
     if (data) setHistorico(data);
-
-    // Mudar o status para "Em Atendimento"
-    if (ticket.status !== 'Em Atendimento') {
-      await supabase
-        .from('support_tickets')
-        .update({ status: 'Em Atendimento' })
-        .eq('id', ticket.id);
-    }
+    if (ticket.status !== 'Em Atendimento') await supabase.from('support_tickets').update({ status: 'Em Atendimento' }).eq('id', ticket.id);
   };
 
-  // 3. Escutar mensagens em tempo real no modal aberto
   useEffect(() => {
     if (!ticketSelecionado) return;
-
-    const canalMsgs = supabase.channel(`admin-chat-${ticketSelecionado.id}`)
-      .on('postgres_changes', { 
-        event: 'INSERT', 
-        schema: 'public', 
-        table: 'support_messages', 
-        filter: `ticket_id=eq.${ticketSelecionado.id}` 
-      }, 
-      (payload) => {
-        const novaMsg = payload.new as Mensagem;
-        setHistorico(prev => {
-          if (prev.find(m => m.id === novaMsg.id)) return prev;
-          return [...prev, novaMsg];
-        });
-      }).subscribe();
-
+    const canalMsgs = supabase.channel(`admin-chat-${ticketSelecionado.id}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'support_messages', filter: `ticket_id=eq.${ticketSelecionado.id}` }, (payload) => {
+      const novaMsg = payload.new as Mensagem;
+      setHistorico(prev => prev.find(m => m.id === novaMsg.id) ? prev : [...prev, novaMsg]);
+    }).subscribe();
     return () => { supabase.removeChannel(canalMsgs); };
   }, [ticketSelecionado]);
 
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [historico, chatAberto]);
+  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [historico, chatAberto]);
 
-  // 4. Enviar resposta do Admin
   const enviarResposta = async () => {
     if (!mensagem.trim() || !ticketSelecionado) return;
     setEnviando(true);
     const textoEnviado = mensagem;
     setMensagem('');
 
-    const { data, error } = await supabase
-      .from('support_messages')
-      .insert({
-        ticket_id: ticketSelecionado.id,
-        sender_type: 'admin',
-        message: textoEnviado
-      })
-      .select()
-      .single();
+    // 🔥 Envia via API para o servidor traduzir automaticamente
+    const res = await fetch('/api/apoio/admin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ticketId: ticketSelecionado.id, mensagem: textoEnviado })
+    });
 
-    if (error) {
-      toast.error('Erro ao enviar mensagem.');
-      setMensagem(textoEnviado); // Devolve o texto se falhar
-    } else if (data) {
-      // Atualiza a lista local imediatamente
-      setHistorico(prev => [...prev, data as Mensagem]);
+    if (!res.ok) {
+      toast.error('Erro ao enviar.');
+      setMensagem(textoEnviado);
     }
     setEnviando(false);
   };
@@ -151,12 +95,9 @@ export default function AdminPage() {
     <div className="min-h-screen bg-[#0f172a] p-6 font-sans text-white pb-24">
       <div className="max-w-6xl mx-auto">
         <h1 className="text-2xl font-bold text-white mb-6">Painel de Administração</h1>
-
-        {/* TABELA DE TICKETS */}
         <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden shadow-lg">
           <div className="bg-slate-900 px-6 py-4 border-b border-slate-700 flex items-center gap-2">
-            <span className="text-xl">🚨</span>
-            <h2 className="text-lg font-bold text-white">Tickets de Suporte Pendentes</h2>
+            <span className="text-xl">🚨</span><h2 className="text-lg font-bold text-white">Tickets de Suporte Pendentes</h2>
           </div>
           
           <div className="overflow-x-auto">
@@ -171,40 +112,16 @@ export default function AdminPage() {
               </thead>
               <tbody className="divide-y divide-slate-700">
                 {loading ? (
-                  <tr>
-                    <td colSpan={4} className="p-8 text-center text-slate-400">A carregar tickets...</td>
-                  </tr>
+                  <tr><td colSpan={4} className="p-8 text-center text-slate-400">A carregar...</td></tr>
                 ) : tickets.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="p-8 text-center text-slate-400">Nenhum ticket de suporte no momento.</td>
-                  </tr>
+                  <tr><td colSpan={4} className="p-8 text-center text-slate-400">Nenhum ticket.</td></tr>
                 ) : (
                   tickets.map((ticket) => (
                     <tr key={ticket.id} className="hover:bg-slate-700 transition-colors">
-                      <td className="p-4 font-medium text-white">
-                        {/* 🆕 Se o nome falhar (null), mostra os primeiros 8 caracteres do ID do utilizador */}
-                        {ticket.profiles?.nome_completo || `Cliente #${ticket.user_id.substring(0, 8)}`}
-                      </td>
-                      <td className="p-4">
-                        <span className={`px-2 py-1 rounded-md text-xs font-bold ${
-                          ticket.status === 'Aguardando Admin' ? 'bg-red-500/20 text-red-400' :
-                          ticket.status === 'Em Atendimento' ? 'bg-green-500/20 text-green-400' :
-                          'bg-blue-500/20 text-blue-400'
-                        }`}>
-                          {ticket.status}
-                        </span>
-                      </td>
-                      <td className="p-4 text-slate-400 text-sm">
-                        {new Date(ticket.created_at).toLocaleString('pt-PT')}
-                      </td>
-                      <td className="p-4">
-                        <button 
-                          onClick={() => abrirTicket(ticket)}
-                          className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-2 px-4 rounded transition-colors"
-                        >
-                          Abrir Chat
-                        </button>
-                      </td>
+                      <td className="p-4 font-medium text-white">{ticket.profiles?.nome_completo || `Cliente #${ticket.user_id.substring(0, 8)}`}</td>
+                      <td className="p-4"><span className={`px-2 py-1 rounded-md text-xs font-bold ${ticket.status === 'Aguardando Admin' ? 'bg-red-500/20 text-red-400' : ticket.status === 'Em Atendimento' ? 'bg-green-500/20 text-green-400' : 'bg-blue-500/20 text-blue-400'}`}>{ticket.status}</span></td>
+                      <td className="p-4 text-slate-400 text-sm">{new Date(ticket.created_at).toLocaleString('pt-PT')}</td>
+                      <td className="p-4"><button onClick={() => abrirTicket(ticket)} className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-2 px-4 rounded">Abrir Chat</button></td>
                     </tr>
                   ))
                 )}
@@ -214,36 +131,36 @@ export default function AdminPage() {
         </div>
       </div>
 
-      {/* MODAL DO CHAT DO ADMIN */}
       {chatAberto && ticketSelecionado && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[100]">
-          <div className="bg-slate-800 w-full max-w-2xl rounded-2xl overflow-hidden flex flex-col h-[80vh] border border-slate-700 shadow-2xl">
-            {/* Header do Modal */}
+          <div className="bg-slate-800 w-full max-w-2xl rounded-2xl overflow-hidden flex flex-col h-[80vh] border border-slate-700">
             <div className="bg-slate-900 p-4 flex items-center justify-between border-b border-slate-700">
-              <div>
-                <h3 className="font-bold text-white">
-                  Chat com {ticketSelecionado.profiles?.nome_completo || `Cliente #${ticketSelecionado.user_id.substring(0, 8)}`}
-                </h3>
-                <p className="text-xs text-slate-400">Ticket #{ticketSelecionado.id.split('-')[0]}</p>
-              </div>
+              <h3 className="font-bold text-white">Chat com {ticketSelecionado.profiles?.nome_completo || 'Cliente'}</h3>
               <button onClick={() => setChatAberto(false)} className="text-slate-400 hover:text-white text-2xl">&times;</button>
             </div>
 
-            {/* Histórico de Mensagens */}
             <div className="flex-1 p-4 overflow-y-auto bg-slate-900 space-y-4">
               {historico.map((msg) => (
                 <div key={msg.id} className={`flex ${msg.sender_type === 'admin' ? 'justify-end' : 'justify-start'}`}>
                   <div className={`max-w-[80%] p-3 rounded-xl text-sm ${
-                    msg.sender_type === 'admin' 
-                      ? 'bg-green-600 text-white rounded-br-none' 
-                      : msg.sender_type === 'user'
-                      ? 'bg-blue-600 text-white rounded-bl-none'
-                      : 'bg-slate-700 border border-slate-600 text-slate-100 rounded-bl-none'
+                    msg.sender_type === 'admin' ? 'bg-green-600 text-white rounded-br-none' : 
+                    msg.sender_type === 'user' ? 'bg-blue-600 text-white rounded-bl-none' : 
+                    'bg-slate-700 border border-slate-600 text-slate-100 rounded-bl-none'
                   }`}>
                     <span className="block text-[10px] font-bold opacity-70 mb-1">
                       {msg.sender_type === 'admin' ? 'Eu (Admin)' : msg.sender_type === 'user' ? 'Cliente' : 'Bete (Bot)'}
                     </span>
+                    
+                    {/* Mensagem Original */}
                     {msg.message && <p>{msg.message}</p>}
+                    
+                    {/* Tradução (se existir) */}
+                    {msg.translated_message && (
+                      <p className="mt-2 pt-2 border-t border-white/20 text-xs italic opacity-80">
+                        {msg.translated_message}
+                      </p>
+                    )}
+                    
                     {msg.image_url && <img src={msg.image_url} alt="Anexo" className="mt-2 rounded-lg max-h-32 object-cover" />}
                   </div>
                 </div>
@@ -251,22 +168,15 @@ export default function AdminPage() {
               <div ref={chatEndRef} />
             </div>
 
-            {/* Input de Resposta */}
             <div className="p-4 bg-slate-800 border-t border-slate-700 flex gap-2">
               <input 
-                type="text" 
-                value={mensagem} 
-                onChange={(e) => setMensagem(e.target.value)}
-                placeholder="Escreva a sua resposta..." 
+                type="text" value={mensagem} onChange={(e) => setMensagem(e.target.value)}
+                placeholder="Escreva em Português (será traduzido)..." 
                 className="flex-1 bg-slate-900 text-white p-3 rounded-xl text-sm outline-none border border-slate-700 focus:border-blue-500"
                 onKeyDown={(e) => e.key === 'Enter' && enviarResposta()}
                 disabled={enviando}
               />
-              <button 
-                onClick={enviarResposta} 
-                disabled={enviando || !mensagem.trim()} 
-                className="bg-green-600 text-white px-6 rounded-xl font-bold text-sm hover:bg-green-500 disabled:opacity-50 transition-colors"
-              >
+              <button onClick={enviarResposta} disabled={enviando || !mensagem.trim()} className="bg-green-600 text-white px-6 rounded-xl font-bold text-sm hover:bg-green-500 disabled:opacity-50">
                 {enviando ? '...' : 'Enviar'}
               </button>
             </div>
