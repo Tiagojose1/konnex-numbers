@@ -10,13 +10,13 @@ const supabaseAdmin = createClient(
 export async function POST(request: Request) {
   try {
     const { ticketId, mensagemUser } = await request.json();
-    const texto = mensagemUser.toLowerCase();
+    const texto = (mensagemUser || '').toLowerCase();
     
     let respostaBete = "";
     let chamarAdmin = false;
 
-    // 🧠 LÓGICA DE CONHECIMENTO DA BETE
-    if (texto.includes('olá') || texto.includes('ola') || texto.includes('bom dia') || texto.includes('boa tarde')) {
+    // 🧠 LÓGICA DA BETE
+    if (texto.includes('olá') || texto.includes('ola') || texto.includes('bom dia') || texto.includes('boa tarde') || texto.includes('boa noite')) {
       respostaBete = "Olá! Sou a Bete. Como posso ajudar? Pode perguntar sobre saldo, reembolso, números ou envio de fotos.";
     } 
     else if (texto.includes('saldo') || texto.includes('depositar') || texto.includes('recarregar') || texto.includes('mpesa') || texto.includes('m-pesa') || texto.includes('emola') || texto.includes('e-mola')) {
@@ -33,26 +33,29 @@ export async function POST(request: Request) {
       chamarAdmin = true;
     } 
     else {
-      // Fallback: Se a Bete não souber, chama o humano
       respostaBete = "Compreendo a sua situação, mas não tenho essa informação. Já avisei a equipa de suporte (Admin) e um humano irá responder aqui em breve. Obrigado pela paciência!";
       chamarAdmin = true;
     }
 
-    // Se a Bete não soube responder, muda o estado do ticket para "Aguardando Admin"
+    // Se a Bete não soube responder, muda o estado do ticket
     if (chamarAdmin) {
       await supabaseAdmin.from('support_tickets').update({ status: 'Aguardando Admin' }).eq('id', ticketId);
     }
 
-    // Guardar a resposta da Bete na base de dados
-    await supabaseAdmin.from('support_messages').insert({
+    // Grava a resposta da Bete na base de dados
+    const { data: mensagemGravada, error: erroInsert } = await supabaseAdmin.from('support_messages').insert({
       ticket_id: ticketId,
       sender_type: 'bot',
       message: respostaBete
-    });
+    }).select().single();
 
-    return NextResponse.json({ success: true });
+    if (erroInsert) throw erroInsert;
+
+    // 🆕 Devolve a mensagem gravada para o frontend mostrar no ecrã
+    return NextResponse.json({ success: true, resposta: mensagemGravada });
 
   } catch (error) {
+    console.error('Erro no bot:', error);
     return NextResponse.json({ error: 'Erro no bot' }, { status: 500 });
   }
 }

@@ -41,12 +41,10 @@ export default function ApoioPage() {
     faq.resposta.toLowerCase().includes(pesquisaFaq.toLowerCase())
   );
 
-  // Auto-scroll para a última mensagem
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [historico, chatAberto]);
 
-  // Iniciar ou retomar o Chat
   const abrirChat = async () => {
     if (chatAberto) {
       setChatAberto(false);
@@ -56,12 +54,8 @@ export default function ApoioPage() {
     setAbrindoChat(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast.error('Faça login para abrir o chat.');
-        return;
-      }
+      if (!session) return toast.error('Faça login para abrir o chat.');
 
-      // Procura um ticket ativo do utilizador
       let { data: ticket } = await supabase
         .from('support_tickets')
         .select('*')
@@ -71,7 +65,6 @@ export default function ApoioPage() {
         .limit(1)
         .maybeSingle();
 
-      // Se não existir, cria um novo
       if (!ticket) {
         const { data: novoTicket, error: erroTicket } = await supabase
           .from('support_tickets')
@@ -82,7 +75,6 @@ export default function ApoioPage() {
         if (erroTicket) throw erroTicket;
         ticket = novoTicket;
         
-        // Mensagem de boas-vindas da Bete
         await supabase.from('support_messages').insert({
           ticket_id: ticket.id,
           sender_type: 'bot',
@@ -92,7 +84,6 @@ export default function ApoioPage() {
 
       setTicketId(ticket.id);
 
-      // Carregar histórico de mensagens
       const { data: msgs } = await supabase
         .from('support_messages')
         .select('*')
@@ -119,7 +110,7 @@ export default function ApoioPage() {
       (payload) => {
         const novaMsg = payload.new as Mensagem;
         setHistorico(prev => {
-          if (prev.find(m => m.id === novaMsg.id)) return prev;
+          if (prev.find(m => m.id === novaMsg.id)) return prev; // Evita duplicados
           return [...prev, novaMsg];
         });
       }).subscribe();
@@ -127,54 +118,62 @@ export default function ApoioPage() {
     return () => { supabase.removeChannel(canal); };
   }, [ticketId]);
 
-  // 🆕 CORREÇÃO DO BOTÃO DE ENVIAR
   const handleEnviarMensagem = async () => {
     if (!mensagem.trim() && !imagemAnexada) return;
-    
-    // Se o ticketId não estiver pronto (ainda a carregar), avisa
-    if (!ticketId) {
-      toast.info('A preparar o chat... Aguarde um segundo.');
-      return;
-    }
+    if (!ticketId) return toast.info('A preparar o chat... Aguarde um segundo.');
     
     setLoading(true);
+    const textoEnviado = mensagem;
+    const imgAtual = imagemAnexada;
+    
+    // Limpa o input imediatamente para o utilizador
+    setMensagem('');
+    setImagemAnexada(null);
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
       let urlImagem = null;
-
-      // Upload da imagem (se houver)
-      if (imagemAnexada) {
-        const fileExt = imagemAnexada.name.split('.').pop();
+      if (imgAtual) {
+        const fileExt = imgAtual.name.split('.').pop();
         const fileName = `suporte-${Date.now()}.${fileExt}`;
-        const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, imagemAnexada);
-        
+        const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, imgAtual);
         if (!uploadError) {
           const { data } = supabase.storage.from('avatars').getPublicUrl(fileName);
           urlImagem = data.publicUrl;
         }
       }
 
-      const textoEnviado = mensagem;
-      setMensagem(''); // Limpa o input imediatamente para o utilizador ver que funcionou
-      setImagemAnexada(null);
-
-      // 1. Grava a mensagem do utilizador no banco
-      await supabase.from('support_messages').insert({
+      // 1. Grava a mensagem do utilizador e adiciona ao ecrã imediatamente
+      const { data: msgUser } = await supabase.from('support_messages').insert({
         ticket_id: ticketId,
         sender_type: 'user',
         message: textoEnviado || null,
         image_url: urlImagem
-      });
+      }).select().single();
 
-      // 2. Chama a Bete para responder
-      await fetch('/api/apoio/bot', {
+      if (msgUser) {
+        setHistorico(prev => [...prev, msgUser]);
+      }
+
+      // 2. Chama a Bete
+      const res = await fetch('/api/apoio/bot', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ticketId, mensagemUser: textoEnviado })
       });
+
+      const dados = await res.json();
+
+      // 3. Adiciona a resposta da Bete ao ecrã imediatamente
+      if (dados.resposta) {
+        setHistorico(prev => {
+           // Evita duplicados se o Realtime for mais rápido
+           if (prev.find(m => m.id === dados.resposta.id)) return prev;
+           return [...prev, dados.resposta];
+        });
+      }
 
     } catch (error) {
       console.error(error);
@@ -192,7 +191,7 @@ export default function ApoioPage() {
 
       <div className="max-w-2xl mx-auto p-4">
         
-        {/* 🆕 CARD DA BETE (Apenas Nome, Bio Removida) */}
+        {/* Card da Bete */}
         <div className="bg-gradient-to-r from-blue-700 to-purple-700 rounded-2xl p-6 shadow-lg mb-6 relative overflow-hidden text-white">
           <div className="relative z-10">
             <h4 className="text-2xl font-extrabold mb-4">Bete</h4>
@@ -221,7 +220,6 @@ export default function ApoioPage() {
               <button onClick={() => setChatAberto(false)} className="text-slate-400 hover:text-white text-xl">&times;</button>
             </div>
 
-            {/* Histórico de Mensagens */}
             <div className="flex-1 p-4 overflow-y-auto bg-slate-50 space-y-4">
               {historico.map((msg) => (
                 <div key={msg.id} className={`flex ${msg.sender_type === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -242,7 +240,6 @@ export default function ApoioPage() {
               <div ref={chatEndRef} />
             </div>
 
-            {/* Input e Upload */}
             <div className="p-3 bg-white border-t border-slate-200 flex items-center gap-2">
               <button onClick={() => fileInputRef.current?.click()} className="text-slate-400 hover:text-blue-600 p-2 text-xl" title="Anexar foto">📎</button>
               <input type="file" accept="image/*" onChange={(e) => setImagemAnexada(e.target.files?.[0] || null)} className="hidden" ref={fileInputRef} />
