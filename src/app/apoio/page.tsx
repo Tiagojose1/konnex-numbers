@@ -101,7 +101,7 @@ export default function ApoioPage() {
     }
   };
 
-  // Realtime: Ouvir novas mensagens (do Admin, por exemplo)
+  // Realtime: Ouvir novas mensagens do Admin
   useEffect(() => {
     if (!ticketId) return;
 
@@ -110,7 +110,7 @@ export default function ApoioPage() {
       (payload) => {
         const novaMsg = payload.new as Mensagem;
         setHistorico(prev => {
-          if (prev.find(m => m.id === novaMsg.id)) return prev; // Evita duplicados
+          if (prev.find(m => m.id === novaMsg.id)) return prev;
           return [...prev, novaMsg];
         });
       }).subscribe();
@@ -118,6 +118,7 @@ export default function ApoioPage() {
     return () => { supabase.removeChannel(canal); };
   }, [ticketId]);
 
+  // 🆕 Envio simplificado via Backend
   const handleEnviarMensagem = async () => {
     if (!mensagem.trim() && !imagemAnexada) return;
     if (!ticketId) return toast.info('A preparar o chat... Aguarde um segundo.');
@@ -126,7 +127,6 @@ export default function ApoioPage() {
     const textoEnviado = mensagem;
     const imgAtual = imagemAnexada;
     
-    // Limpa o input imediatamente para o utilizador
     setMensagem('');
     setImagemAnexada(null);
 
@@ -145,39 +145,32 @@ export default function ApoioPage() {
         }
       }
 
-      // 1. Grava a mensagem do utilizador e adiciona ao ecrã imediatamente
-      const { data: msgUser } = await supabase.from('support_messages').insert({
-        ticket_id: ticketId,
-        sender_type: 'user',
-        message: textoEnviado || null,
-        image_url: urlImagem
-      }).select().single();
-
-      if (msgUser) {
-        setHistorico(prev => [...prev, msgUser]);
-      }
-
-      // 2. Chama a Bete
+      // Chama a API do backend para processar o envio e a resposta da Bete
       const res = await fetch('/api/apoio/bot', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ticketId, mensagemUser: textoEnviado })
+        body: JSON.stringify({ 
+          ticketId, 
+          mensagemUser: textoEnviado,
+          imageUrl: urlImagem
+        })
       });
 
       const dados = await res.json();
 
-      // 3. Adiciona a resposta da Bete ao ecrã imediatamente
-      if (dados.resposta) {
-        setHistorico(prev => {
-           // Evita duplicados se o Realtime for mais rápido
-           if (prev.find(m => m.id === dados.resposta.id)) return prev;
-           return [...prev, dados.resposta];
-        });
-      }
+      if (dados.error) throw new Error(dados.error);
+
+      // Adiciona as mensagens devolvidas ao ecrã imediatamente
+      setHistorico(prev => {
+        const novas = [...prev];
+        if (dados.msgUser && !novas.find(m => m.id === dados.msgUser.id)) novas.push(dados.msgUser);
+        if (dados.msgBot && !novas.find(m => m.id === dados.msgBot.id)) novas.push(dados.msgBot);
+        return novas;
+      });
 
     } catch (error) {
       console.error(error);
-      toast.error('Erro ao enviar a mensagem.');
+      toast.error('Erro ao enviar a mensagem. Tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -191,7 +184,6 @@ export default function ApoioPage() {
 
       <div className="max-w-2xl mx-auto p-4">
         
-        {/* Card da Bete */}
         <div className="bg-gradient-to-r from-blue-700 to-purple-700 rounded-2xl p-6 shadow-lg mb-6 relative overflow-hidden text-white">
           <div className="relative z-10">
             <h4 className="text-2xl font-extrabold mb-4">Bete</h4>
@@ -206,7 +198,6 @@ export default function ApoioPage() {
           <div className="absolute right-2 bottom-2 text-7xl opacity-80">🤖</div>
         </div>
 
-        {/* JANELA DE CHAT */}
         {chatAberto && (
           <div className="bg-white rounded-xl shadow-xl border border-slate-200 mb-8 overflow-hidden flex flex-col h-[450px]">
             <div className="bg-[#0f172a] p-4 flex items-center justify-between">
@@ -265,7 +256,6 @@ export default function ApoioPage() {
           </div>
         )}
 
-        {/* FAQ */}
         <h2 className="text-lg font-bold text-slate-900 mb-4 mt-8">Perguntas mais frequentes</h2>
         <div className="relative mb-4">
           <input type="text" placeholder="Pesquisar..." value={pesquisaFaq} onChange={(e) => setPesquisaFaq(e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl py-3 pl-4 outline-none focus:ring-2 focus:ring-blue-500" />
@@ -283,7 +273,6 @@ export default function ApoioPage() {
         </div>
       </div>
       
-      {/* Navegação Inferior */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex justify-around py-2 px-2 shadow-lg z-50">
         <Link href="/dashboard" className="flex flex-col items-center text-slate-400 p-2">
           <span className="text-xl">🏠</span><span className="text-[10px] font-medium mt-1">Início</span>
