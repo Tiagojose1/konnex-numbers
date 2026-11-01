@@ -56,6 +56,7 @@ export default function ApoioPage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return toast.error('Faça login para abrir o chat.');
 
+      // Procura um ticket ativo
       let { data: ticket } = await supabase
         .from('support_tickets')
         .select('*')
@@ -65,6 +66,7 @@ export default function ApoioPage() {
         .limit(1)
         .maybeSingle();
 
+      // Se não existir, cria um novo
       if (!ticket) {
         const { data: novoTicket, error: erroTicket } = await supabase
           .from('support_tickets')
@@ -72,9 +74,13 @@ export default function ApoioPage() {
           .select()
           .single();
 
-        if (erroTicket) throw erroTicket;
+        if (erroTicket) {
+          console.error("Erro ao criar ticket:", erroTicket);
+          throw erroTicket;
+        }
         ticket = novoTicket;
         
+        // Mensagem de boas vindas
         await supabase.from('support_messages').insert({
           ticket_id: ticket.id,
           sender_type: 'bot',
@@ -84,6 +90,7 @@ export default function ApoioPage() {
 
       setTicketId(ticket.id);
 
+      // Carrega o histórico
       const { data: msgs } = await supabase
         .from('support_messages')
         .select('*')
@@ -93,15 +100,14 @@ export default function ApoioPage() {
       if (msgs) setHistorico(msgs);
       setChatAberto(true);
 
-    } catch (error) {
-      console.error(error);
-      toast.error('Erro ao abrir o chat. Tente novamente.');
+    } catch (error: any) {
+      console.error("Erro completo ao abrir chat:", error);
+      toast.error(`Erro: ${error.message || 'Falha ao abrir o chat'}`);
     } finally {
       setAbrindoChat(false);
     }
   };
 
-  // Realtime: Ouvir novas mensagens do Admin
   useEffect(() => {
     if (!ticketId) return;
 
@@ -118,7 +124,6 @@ export default function ApoioPage() {
     return () => { supabase.removeChannel(canal); };
   }, [ticketId]);
 
-  // 🆕 Envio simplificado via Backend
   const handleEnviarMensagem = async () => {
     if (!mensagem.trim() && !imagemAnexada) return;
     if (!ticketId) return toast.info('A preparar o chat... Aguarde um segundo.');
@@ -131,9 +136,6 @@ export default function ApoioPage() {
     setImagemAnexada(null);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-
       let urlImagem = null;
       if (imgAtual) {
         const fileExt = imgAtual.name.split('.').pop();
@@ -145,7 +147,7 @@ export default function ApoioPage() {
         }
       }
 
-      // Chama a API do backend para processar o envio e a resposta da Bete
+      // Chama a API do backend
       const res = await fetch('/api/apoio/bot', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -156,11 +158,15 @@ export default function ApoioPage() {
         })
       });
 
-      const dados = await res.json();
+      // Se a resposta do servidor não for OK, mostra o erro real!
+      if (!res.ok) {
+        const erroTexto = await res.text();
+        throw new Error(`Falha no servidor: ${erroTexto}`);
+      }
 
+      const dados = await res.json();
       if (dados.error) throw new Error(dados.error);
 
-      // Adiciona as mensagens devolvidas ao ecrã imediatamente
       setHistorico(prev => {
         const novas = [...prev];
         if (dados.msgUser && !novas.find(m => m.id === dados.msgUser.id)) novas.push(dados.msgUser);
@@ -168,9 +174,9 @@ export default function ApoioPage() {
         return novas;
       });
 
-    } catch (error) {
-      console.error(error);
-      toast.error('Erro ao enviar a mensagem. Tente novamente.');
+    } catch (error: any) {
+      console.error("ERRO DETALHADO DO CHAT:", error);
+      toast.error(error.message || 'Erro ao enviar a mensagem.');
     } finally {
       setLoading(false);
     }

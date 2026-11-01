@@ -1,55 +1,48 @@
 // src/lib/currencies.ts
 
-// Taxas de câmbio em relação ao MZN (1 MZN = X moeda estrangeira)
+// Taxas: 1 USD = X moeda local
 export const RATES: Record<string, number> = {
-  MZN: 1,
-  BRL: 0.086,
-  EUR: 0.0144,
-  USD: 0.0156,
-  ZAR: 0.285,
-  AOA: 14.20,
-  GBP: 0.0123,
-  INR: 1.30,
+  USD: 1,
+  MZN: 63.88,   // 1 USD ≈ 63.88 MZN
+  BRL: 5.4379,  // 1 USD ≈ 5.44 BRL
+  EUR: 1.1161,  // 1 USD ≈ 1.12 EUR
+  ZAR: 18.50,   // 1 USD ≈ 18.50 ZAR (exemplo)
+  AOA: 830.00,  // 1 USD ≈ 830 AOA (exemplo)
 };
 
 export const CURRENCY_SYMBOLS: Record<string, string> = {
+  USD: '$',
   MZN: 'MT',
   BRL: 'R$',
   EUR: '€',
-  USD: '$',
   ZAR: 'R',
   AOA: 'Kz',
-  GBP: '£',
-  INR: '₹',
 };
 
 export const COUNTRY_TO_CURRENCY: Record<string, string> = {
   'Moçambique': 'MZN',
   'Brasil': 'BRL',
   'Portugal': 'EUR',
-  'Estados Unidos': 'USD',
   'África do Sul': 'ZAR',
   'Angola': 'AOA',
-  'Reino Unido': 'GBP',
-  'Índia': 'INR',
+  'Estados Unidos': 'USD',
 };
 
-// Converter de MZN (base) para a moeda do utilizador
-export function converterParaLocal(valorMZN: number, moedaDestino: string): number {
+// Converte de USD (base) para a moeda local
+export function converterParaLocal(valorUSD: number, moedaDestino: string): number {
   const rate = RATES[moedaDestino] || 1;
-  return valorMZN * rate;
+  return valorUSD * rate;
 }
 
-// Converter da moeda do utilizador PARA MZN (base)
-export function converterParaMZN(valorLocal: number, moedaOrigem: string): number {
+// Converte da moeda local para USD (base)
+export function converterParaUSD(valorLocal: number, moedaOrigem: string): number {
   const rate = RATES[moedaOrigem] || 1;
   return valorLocal / rate;
 }
 
-// Formatar o valor com símbolo da moeda
-export function formatarMoeda(valorMZN: number, moeda: string): string {
-  const valorConvertido = converterParaLocal(valorMZN, moeda);
+// Formata o valor com o símbolo da moeda local
+export function formatarMoeda(valorUSD: number, moeda: string): string {
+  const valorConvertido = converterParaLocal(valorUSD, moeda);
   const simbolo = CURRENCY_SYMBOLS[moeda] || moeda;
-  const decimais = ['AOA', 'INR'].includes(moeda) ? 0 : 2;
-  return `${simbolo} ${valorConvertido.toFixed(decimais)}`;
+  return `${simbolo} ${valorConvertido.toFixed(2)}`;
 }
