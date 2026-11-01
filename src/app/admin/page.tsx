@@ -1,263 +1,275 @@
 // src/app/admin/page.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
-import { formatarMoeda } from '@/lib/currencies';
 import { toast } from 'sonner';
 
-// Definição dos Tipos
-interface AdminUser {
+interface Ticket {
   id: string;
-  nome_completo: string;
-  saldo: string | number;
-  currency: string;
-  created_at: string;
-}
-
-interface AdminOrder {
-  id: string;
-  servico: string;
-  status: string;
-  valor: string | number;
-  profiles: { nome_completo: string } | null;
-}
-
-// 🆕 Novo Tipo para os Tickets de Suporte
-interface AdminTicket {
-  id: string;
+  user_id: string;
   status: string;
   created_at: string;
-  profiles: { nome_completo: string } | null;
+  profiles: {
+    nome_completo: string;
+  } | null;
 }
 
-interface AdminData {
-  usuarios: AdminUser[];
-  pedidos: AdminOrder[];
-  ticketsSuporte: AdminTicket[]; // 🆕 Adicionado aqui
-  metricas: {
-    totalUtilizadores: number;
-    totalSaldoEmCustodia: number;
-    receitaTotal: number;
-    totalPedidos: number;
-  };
+interface Mensagem {
+  id: string;
+  sender_type: 'user' | 'bot' | 'admin';
+  message: string | null;
+  image_url: string | null;
+  created_at: string;
 }
 
 export default function AdminPage() {
-  const router = useRouter();
+  const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dados, setDados] = useState<AdminData | null>(null);
+  
+  // Estados do Modal de Chat
+  const [chatAberto, setChatAberto] = useState(false);
+  const [ticketSelecionado, setTicketSelecionado] = useState<Ticket | null>(null);
+  const [historico, setHistorico] = useState<Mensagem[]>([]);
+  const [mensagem, setMensagem] = useState('');
+  const [enviando, setEnviando] = useState(false);
+
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // 1. Carregar os tickets
+  const carregarTickets = async () => {
+    // Procura todos os tickets que ainda não foram fechados
+    const { data, error } = await supabase
+      .from('support_tickets')
+      .select(`
+        *,
+        profiles:user_id (nome_completo)
+      `)
+      .in('status', ['Bot', 'Aguardando Admin', 'Em Atendimento'])
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Erro ao carregar tickets:', error);
+      toast.error('Erro ao carregar tickets. Verifique as permissões RLS.');
+    } else if (data) {
+      setTickets(data as unknown as Ticket[]);
+    }
+    setLoading(false);
+  };
 
   useEffect(() => {
-    const carregarAdmin = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        router.push('/login');
-        return;
-      }
+    carregarTickets();
 
-      try {
-        const resposta = await fetch('/api/admin/dados', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            email: session.user.email, 
-            userId: session.user.id 
-          }),
+    // Escutar novos tickets em tempo real
+    const canalTickets = supabase.channel('admin-tickets')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'support_tickets' }, () => {
+        carregarTickets();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(canalTickets); };
+  }, []);
+
+  // 2. Abrir o chat do ticket
+  const abrirTicket = async (ticket: Ticket) => {
+    setTicketSelecionado(ticket);
+    setChatAberto(true);
+    setHistorico([]);
+
+    // Carregar mensagens
+    const { data } = await supabase
+      .from('support_messages')
+      .select('*')
+      .eq('ticket_id', ticket.id)
+      .order('created_at', { ascending: true });
+    
+    if (data) setHistorico(data);
+
+    // Mudar o status para "Em Atendimento"
+    if (ticket.status !== 'Em Atendimento') {
+      await supabase
+        .from('support_tickets')
+        .update({ status: 'Em Atendimento' })
+        .eq('id', ticket.id);
+    }
+  };
+
+  // 3. Escutar mensagens em tempo real no modal aberto
+  useEffect(() => {
+    if (!ticketSelecionado) return;
+
+    const canalMsgs = supabase.channel(`admin-chat-${ticketSelecionado.id}`)
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'support_messages', 
+        filter: `ticket_id=eq.${ticketSelecionado.id}` 
+      }, 
+      (payload) => {
+        const novaMsg = payload.new as Mensagem;
+        setHistorico(prev => {
+          if (prev.find(m => m.id === novaMsg.id)) return prev;
+          return [...prev, novaMsg];
         });
+      }).subscribe();
 
-        const resultado = await resposta.json();
+    return () => { supabase.removeChannel(canalMsgs); };
+  }, [ticketSelecionado]);
 
-        if (!resposta.ok) {
-          toast.error(resultado.error || 'Acesso negado.');
-          router.push('/dashboard');
-          return;
-        }
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [historico, chatAberto]);
 
-        setDados(resultado);
+  // 4. Enviar resposta do Admin
+  const enviarResposta = async () => {
+    if (!mensagem.trim() || !ticketSelecionado) return;
+    setEnviando(true);
+    const textoEnviado = mensagem;
+    setMensagem('');
 
-      } catch {
-        toast.error('Erro ao ligar ao servidor.');
-        router.push('/dashboard');
-      } finally {
-        setLoading(false);
-      }
-    };
+    const { data, error } = await supabase
+      .from('support_messages')
+      .insert({
+        ticket_id: ticketSelecionado.id,
+        sender_type: 'admin',
+        message: textoEnviado
+      })
+      .select()
+      .single();
 
-    carregarAdmin();
-  }, [router]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white">
-        <p className="animate-pulse">A verificar credenciais de administrador...</p>
-      </div>
-    );
-  }
-
-  if (!dados) return null;
+    if (error) {
+      toast.error('Erro ao enviar mensagem.');
+      setMensagem(textoEnviado); // Devolve o texto se falhar
+    } else if (data) {
+      // Atualiza a lista local imediatamente
+      setHistorico(prev => [...prev, data as Mensagem]);
+    }
+    setEnviando(false);
+  };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white p-6 pb-24 font-sans">
-      
-      {/* Cabeçalho do Admin */}
-      <header className="flex justify-between items-center mb-8 border-b border-slate-800 pb-4">
-        <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            <span className="text-yellow-400">👑</span> Painel de Administração
-          </h1>
-          <p className="text-slate-400 text-sm">Konnex Numbers - Controlo Total</p>
-        </div>
-        <Link href="/dashboard" className="bg-slate-800 hover:bg-slate-700 text-sm py-2 px-4 rounded-lg transition-colors">
-          Voltar ao App
-        </Link>
-      </header>
+    <div className="min-h-screen bg-[#0f172a] p-6 font-sans text-white pb-24">
+      <div className="max-w-6xl mx-auto">
+        <h1 className="text-2xl font-bold text-white mb-6">Painel de Administração</h1>
 
-      {/* Cards de Métricas */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl">
-          <p className="text-slate-400 text-xs font-bold uppercase mb-1">Utilizadores</p>
-          <h2 className="text-2xl font-bold text-white">{dados.metricas.totalUtilizadores}</h2>
-        </div>
-        <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl">
-          <p className="text-slate-400 text-xs font-bold uppercase mb-1">Saldo em Custódia</p>
-          <h2 className="text-2xl font-bold text-cyan-400">{formatarMoeda(dados.metricas.totalSaldoEmCustodia, 'MZN')}</h2>
-        </div>
-        <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl">
-          <p className="text-slate-400 text-xs font-bold uppercase mb-1">Receita (Concluídos)</p>
-          <h2 className="text-2xl font-bold text-green-400">{formatarMoeda(dados.metricas.receitaTotal, 'MZN')}</h2>
-        </div>
-        <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl">
-          <p className="text-slate-400 text-xs font-bold uppercase mb-1">Total Pedidos</p>
-          <h2 className="text-2xl font-bold text-yellow-400">{dados.metricas.totalPedidos}</h2>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        
-        {/* Tabela de Utilizadores */}
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-          <h3 className="font-bold text-lg mb-4 text-slate-200">Últimos Utilizadores</h3>
+        {/* TABELA DE TICKETS */}
+        <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden shadow-lg">
+          <div className="bg-slate-900 px-6 py-4 border-b border-slate-700 flex items-center gap-2">
+            <span className="text-xl">🚨</span>
+            <h2 className="text-lg font-bold text-white">Tickets de Suporte Pendentes</h2>
+          </div>
+          
           <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="text-xs text-slate-400 uppercase bg-slate-950/50 rounded-lg">
-                <tr>
-                  <th className="px-4 py-3">Nome</th>
-                  <th className="px-4 py-3">Saldo</th>
-                  <th className="px-4 py-3">Data</th>
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-800 text-slate-400 text-xs uppercase tracking-wider">
+                  <th className="p-4 font-bold border-b border-slate-700">Utilizador</th>
+                  <th className="p-4 font-bold border-b border-slate-700">Status</th>
+                  <th className="p-4 font-bold border-b border-slate-700">Data</th>
+                  <th className="p-4 font-bold border-b border-slate-700">Ação</th>
                 </tr>
               </thead>
-              <tbody>
-                {dados.usuarios.slice(0, 10).map((user: AdminUser) => (
-                  <tr key={user.id} className="border-b border-slate-800 last:border-0 hover:bg-slate-800/50">
-                    <td className="px-4 py-3 font-medium text-white">{user.nome_completo}</td>
-                    <td className="px-4 py-3 text-cyan-400">{formatarMoeda(parseFloat(user.saldo as string), user.currency)}</td>
-                    <td className="px-4 py-3 text-slate-500 text-xs">
-                      {new Date(user.created_at).toLocaleDateString('pt-MZ')}
-                    </td>
+              <tbody className="divide-y divide-slate-700">
+                {loading ? (
+                  <tr>
+                    <td colSpan={4} className="p-8 text-center text-slate-400">A carregar tickets...</td>
                   </tr>
-                ))}
+                ) : tickets.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="p-8 text-center text-slate-400">Nenhum ticket de suporte no momento.</td>
+                  </tr>
+                ) : (
+                  tickets.map((ticket) => (
+                    <tr key={ticket.id} className="hover:bg-slate-750 transition-colors">
+                      <td className="p-4 font-medium text-white">
+                        {ticket.profiles?.nome_completo || 'Utilizador Desconhecido'}
+                      </td>
+                      <td className="p-4">
+                        <span className={`px-2 py-1 rounded-md text-xs font-bold ${
+                          ticket.status === 'Aguardando Admin' ? 'bg-red-500/20 text-red-400' :
+                          ticket.status === 'Em Atendimento' ? 'bg-green-500/20 text-green-400' :
+                          'bg-blue-500/20 text-blue-400'
+                        }`}>
+                          {ticket.status}
+                        </span>
+                      </td>
+                      <td className="p-4 text-slate-400 text-sm">
+                        {new Date(ticket.created_at).toLocaleString('pt-PT')}
+                      </td>
+                      <td className="p-4">
+                        <button 
+                          onClick={() => abrirTicket(ticket)}
+                          className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-2 px-4 rounded transition-colors"
+                        >
+                          Abrir Chat
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
         </div>
+      </div>
 
-        {/* Tabela de Pedidos Globais */}
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-          <h3 className="font-bold text-lg mb-4 text-slate-200">Últimos Pedidos</h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="text-xs text-slate-400 uppercase bg-slate-950/50 rounded-lg">
-                <tr>
-                  <th className="px-4 py-3">Cliente</th>
-                  <th className="px-4 py-3">Serviço</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Valor</th>
-                </tr>
-              </thead>
-              <tbody>
-                {dados.pedidos.slice(0, 10).map((pedido: AdminOrder) => (
-                  <tr key={pedido.id} className="border-b border-slate-800 last:border-0 hover:bg-slate-800/50">
-                    <td className="px-4 py-3 font-medium text-white">{pedido.profiles?.nome_completo || 'Desconhecido'}</td>
-                    <td className="px-4 py-3 text-slate-300">{pedido.servico}</td>
-                    <td className="px-4 py-3">
-                      <span className={`px-2 py-1 rounded text-xs font-bold ${
-                        pedido.status === 'Concluído' ? 'bg-green-500/20 text-green-400' : 
-                        pedido.status === 'Cancelado' ? 'bg-red-500/20 text-red-400' : 
-                        'bg-yellow-500/20 text-yellow-400'
-                      }`}>
-                        {pedido.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 font-bold text-white">{pedido.valor} MT</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {/* MODAL DO CHAT DO ADMIN */}
+      {chatAberto && ticketSelecionado && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[100]">
+          <div className="bg-slate-800 w-full max-w-2xl rounded-2xl overflow-hidden flex flex-col h-[80vh] border border-slate-700 shadow-2xl">
+            {/* Header do Modal */}
+            <div className="bg-slate-900 p-4 flex items-center justify-between border-b border-slate-700">
+              <div>
+                <h3 className="font-bold text-white">Chat com {ticketSelecionado.profiles?.nome_completo}</h3>
+                <p className="text-xs text-slate-400">Ticket #{ticketSelecionado.id.split('-')[0]}</p>
+              </div>
+              <button onClick={() => setChatAberto(false)} className="text-slate-400 hover:text-white text-2xl">&times;</button>
+            </div>
+
+            {/* Histórico de Mensagens */}
+            <div className="flex-1 p-4 overflow-y-auto bg-slate-900 space-y-4">
+              {historico.map((msg) => (
+                <div key={msg.id} className={`flex ${msg.sender_type === 'admin' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[80%] p-3 rounded-xl text-sm ${
+                    msg.sender_type === 'admin' 
+                      ? 'bg-green-600 text-white rounded-br-none' 
+                      : msg.sender_type === 'user'
+                      ? 'bg-blue-600 text-white rounded-bl-none'
+                      : 'bg-slate-700 border border-slate-600 text-slate-100 rounded-bl-none'
+                  }`}>
+                    <span className="block text-[10px] font-bold opacity-70 mb-1">
+                      {msg.sender_type === 'admin' ? 'Eu (Admin)' : msg.sender_type === 'user' ? 'Cliente' : 'Bete (Bot)'}
+                    </span>
+                    {msg.message && <p>{msg.message}</p>}
+                    {msg.image_url && <img src={msg.image_url} alt="Anexo" className="mt-2 rounded-lg max-h-32 object-cover" />}
+                  </div>
+                </div>
+              ))}
+              <div ref={chatEndRef} />
+            </div>
+
+            {/* Input de Resposta */}
+            <div className="p-4 bg-slate-800 border-t border-slate-700 flex gap-2">
+              <input 
+                type="text" 
+                value={mensagem} 
+                onChange={(e) => setMensagem(e.target.value)}
+                placeholder="Escreva a sua resposta..." 
+                className="flex-1 bg-slate-900 text-white p-3 rounded-xl text-sm outline-none border border-slate-700 focus:border-blue-500"
+                onKeyDown={(e) => e.key === 'Enter' && enviarResposta()}
+                disabled={enviando}
+              />
+              <button 
+                onClick={enviarResposta} 
+                disabled={enviando || !mensagem.trim()} 
+                className="bg-green-600 text-white px-6 rounded-xl font-bold text-sm hover:bg-green-500 disabled:opacity-50 transition-colors"
+              >
+                {enviando ? '...' : 'Enviar'}
+              </button>
+            </div>
           </div>
         </div>
-
-      </div>
-
-      {/* 🆕 Secção de Suporte (Tickets) */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-        <h3 className="font-bold text-lg mb-4 text-white flex items-center gap-2">
-          <span className="text-red-400">🚨</span> Tickets de Suporte Pendentes
-        </h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="text-xs text-slate-400 uppercase bg-slate-950/50">
-              <tr>
-                <th className="px-4 py-3">Utilizador</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Data</th>
-                <th className="px-4 py-3">Acção</th>
-              </tr>
-            </thead>
-            <tbody>
-              {dados.ticketsSuporte && dados.ticketsSuporte.length > 0 ? (
-                dados.ticketsSuporte.map((ticket: AdminTicket) => (
-                  <tr key={ticket.id} className="border-b border-slate-800 last:border-0 hover:bg-slate-800/50">
-                    <td className="px-4 py-3 text-white font-medium">
-                      {ticket.profiles?.nome_completo || 'Utilizador Desconhecido'}
-                    </td>
-                    <td className="px-4 py-3">
-                       <span className={`px-2 py-1 rounded text-xs font-bold ${
-                         ticket.status === 'Aguardando Admin' ? 'bg-red-500/20 text-red-400' : 
-                         ticket.status === 'Bot' ? 'bg-blue-500/20 text-blue-400' :
-                         'bg-green-500/20 text-green-400'
-                       }`}>
-                         {ticket.status}
-                       </span>
-                    </td>
-                    <td className="px-4 py-3 text-slate-400 text-xs">
-                      {new Date(ticket.created_at).toLocaleString('pt-MZ')}
-                    </td>
-                    <td className="px-4 py-3">
-                      <button 
-                        onClick={() => toast.info('O chat de admin será aberto em breve!')}
-                        className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded text-xs transition-colors"
-                      >
-                        Abrir Chat
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-slate-500">
-                    Nenhum ticket de suporte no momento.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
+      )}
     </div>
   );
 }
