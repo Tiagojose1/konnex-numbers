@@ -38,12 +38,12 @@ export default function AdminPage() {
 
   // 1. Carregar os tickets
   const carregarTickets = async () => {
-    // Procura todos os tickets que ainda não foram fechados
+    // 🆕 Correção no select: Forçamos a leitura da chave estrangeira exata
     const { data, error } = await supabase
       .from('support_tickets')
       .select(`
         *,
-        profiles:user_id (nome_completo)
+        profiles!user_id (nome_completo)
       `)
       .in('status', ['Bot', 'Aguardando Admin', 'Em Atendimento'])
       .order('created_at', { ascending: false });
@@ -180,9 +180,10 @@ export default function AdminPage() {
                   </tr>
                 ) : (
                   tickets.map((ticket) => (
-                    <tr key={ticket.id} className="hover:bg-slate-750 transition-colors">
+                    <tr key={ticket.id} className="hover:bg-slate-700 transition-colors">
                       <td className="p-4 font-medium text-white">
-                        {ticket.profiles?.nome_completo || 'Utilizador Desconhecido'}
+                        {/* 🆕 Se o nome falhar (null), mostra os primeiros 8 caracteres do ID do utilizador */}
+                        {ticket.profiles?.nome_completo || `Cliente #${ticket.user_id.substring(0, 8)}`}
                       </td>
                       <td className="p-4">
                         <span className={`px-2 py-1 rounded-md text-xs font-bold ${
@@ -220,7 +221,9 @@ export default function AdminPage() {
             {/* Header do Modal */}
             <div className="bg-slate-900 p-4 flex items-center justify-between border-b border-slate-700">
               <div>
-                <h3 className="font-bold text-white">Chat com {ticketSelecionado.profiles?.nome_completo}</h3>
+                <h3 className="font-bold text-white">
+                  Chat com {ticketSelecionado.profiles?.nome_completo || `Cliente #${ticketSelecionado.user_id.substring(0, 8)}`}
+                </h3>
                 <p className="text-xs text-slate-400">Ticket #{ticketSelecionado.id.split('-')[0]}</p>
               </div>
               <button onClick={() => setChatAberto(false)} className="text-slate-400 hover:text-white text-2xl">&times;</button>
