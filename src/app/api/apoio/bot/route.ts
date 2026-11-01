@@ -22,8 +22,10 @@ export async function POST(request: Request) {
     if (mensagemUser && userLang !== 'pt') {
       try {
         const res = await translate(mensagemUser, { to: 'pt' });
-        textoParaOBot = res.text;
-        traduzidoParaAdmin = res.text;
+        // 🆕 Correção do TypeScript: forçamos o tipo
+        const textoTraduzido = (res as { text: string }).text;
+        textoParaOBot = textoTraduzido;
+        traduzidoParaAdmin = textoTraduzido;
       } catch (e) {
         console.error('Erro traduzir msg user:', e);
       }
@@ -36,8 +38,8 @@ export async function POST(request: Request) {
         ticket_id: ticketId,
         sender_type: 'user',
         message: mensagemUser || null,
-        translated_message: traduzidoParaAdmin, // Guarda a tradução PT para o Admin
-        language: userLang, // Guarda o idioma original (ex: 'zh')
+        translated_message: traduzidoParaAdmin,
+        language: userLang,
         image_url: imageUrl || null,
       })
       .select()
@@ -45,7 +47,7 @@ export async function POST(request: Request) {
 
     if (erroUser) throw erroUser;
 
-    // 3. Lógica da Bete (usando o texto já traduzido para PT)
+    // 3. Lógica da Bete
     const texto = (textoParaOBot || '').toLowerCase();
     let respostaBete = '';
     let chamarAdmin = false;
@@ -67,12 +69,13 @@ export async function POST(request: Request) {
       await supabaseAdmin.from('support_tickets').update({ status: 'Aguardando Admin' }).eq('id', ticketId);
     }
 
-    // 4. Traduzir a resposta da Bete para o idioma do Utilizador
+    // 4. Traduzir a resposta da Bete
     let respostaTraduzida = null;
     if (userLang !== 'pt') {
       try {
         const resBot = await translate(respostaBete, { to: userLang });
-        respostaTraduzida = resBot.text;
+        // 🆕 Correção do TypeScript: forçamos o tipo
+        respostaTraduzida = (resBot as { text: string }).text;
       } catch (e) {
         console.error('Erro traduzir resposta Bete:', e);
       }

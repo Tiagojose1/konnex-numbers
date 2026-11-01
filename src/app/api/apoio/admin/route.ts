@@ -12,7 +12,7 @@ export async function POST(request: Request) {
   try {
     const { ticketId, mensagem } = await request.json();
 
-    // 1. Descobrir qual é o idioma do cliente
+    // 1. Descobrir o idioma do cliente
     const { data: lastUserMsg } = await supabaseAdmin
       .from('support_messages')
       .select('language')
@@ -22,14 +22,15 @@ export async function POST(request: Request) {
       .limit(1)
       .maybeSingle();
 
-    const userLang = lastUserMsg?.language || 'pt'; // Se não achar, assume PT
+    const userLang = lastUserMsg?.language || 'pt';
 
     // 2. Traduzir a resposta do Admin para o idioma do cliente
     let traduzidoParaUser = null;
     if (userLang !== 'pt') {
       try {
         const res = await translate(mensagem, { to: userLang });
-        traduzidoParaUser = res.text;
+        // 🆕 Correção do TypeScript: forçamos o tipo
+        traduzidoParaUser = (res as { text: string }).text;
       } catch (e) {
         console.error('Erro ao traduzir resposta do Admin:', e);
       }
@@ -41,8 +42,8 @@ export async function POST(request: Request) {
       .insert({
         ticket_id: ticketId,
         sender_type: 'admin',
-        message: mensagem, // Original em PT
-        translated_message: traduzidoParaUser, // Traduzido para o cliente
+        message: mensagem,
+        translated_message: traduzidoParaUser,
         language: 'pt'
       })
       .select()
