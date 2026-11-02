@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { countries, Country } from '@/data/countries'; // 🆕 Importar a lista de países
+import { countries, Country } from '@/data/countries';
 
 export default function RegistoPage() {
   const router = useRouter();
@@ -21,13 +21,13 @@ export default function RegistoPage() {
   const [captcha, setCaptcha] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // 🆕 Estado do País Selecionado
+  // Estado do País Selecionado
   const [paisSelecionado, setPaisSelecionado] = useState<Country>(
     countries.find(c => c.id === 'mz') || countries[0] // Padrão: Moçambique
   );
   const [telefone, setTelefone] = useState('');
 
-  // 🆕 Estado do Modal de Países
+  // Estado do Modal de Países
   const [modalPaisAberto, setModalPaisAberto] = useState(false);
   const [pesquisaPais, setPesquisaPais] = useState('');
 
@@ -37,7 +37,7 @@ export default function RegistoPage() {
     c.code.includes(pesquisaPais)
   );
 
-  // 🆕 Quando o utilizador escolhe um país no modal
+  // Quando o utilizador escolhe um país no modal
   const handleSelecionarPais = (pais: Country) => {
     setPaisSelecionado(pais);
     setModalPaisAberto(false);
@@ -54,7 +54,6 @@ export default function RegistoPage() {
     setLoading(true);
     const toastId = toast.loading('A criar a sua conta...');
 
-    // A moeda é definida automaticamente com base no país escolhido
     const moedaEscolhida = paisSelecionado.currency;
 
     const { data, error } = await supabase.auth.signUp({
@@ -63,10 +62,10 @@ export default function RegistoPage() {
       options: { 
         data: { 
           nome_completo: nome, 
-          telefone: `${paisSelecionado.code} ${telefone}`, // Junta o DDI ao número
+          telefone: `${paisSelecionado.code} ${telefone}`,
           currency: moedaEscolhida,
           data_nascimento: dataNascimento,
-          pais_residencia: paisSelecionado.name, // 🆕 Preenchido automaticamente
+          pais_residencia: paisSelecionado.name,
           genero: genero
         } 
       }
@@ -94,10 +93,25 @@ export default function RegistoPage() {
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 font-sans py-10">
       <div className="max-w-md w-full bg-slate-900 p-8 rounded-2xl shadow-2xl border border-slate-800">
         
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-extrabold tracking-tight mb-2">
-            <span className="text-white">Konnex</span>
-            <span className="text-cyan-400 ml-2">Numbers</span>
+        {/* 🆕 CABEÇALHO IGUAL AO DA PÁGINA DE LOGIN */}
+        <div className="text-center mb-8 flex flex-col items-center">
+          
+          <div className="relative flex justify-center mb-4">
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-violet-600 rounded-full blur-3xl brilho-pulsante"></div>
+            <img 
+              src="/globo.png" 
+              alt="Globo Konnex" 
+              className="w-20 h-20 relative z-10 globo-girando object-contain"
+            />
+          </div>
+
+          <h1 className="text-4xl font-extrabold tracking-tight mb-2 flex items-center gap-2">
+            <span className="bg-gradient-to-r from-violet-500 via-blue-500 to-cyan-400 bg-clip-text text-transparent">
+              Konnex
+            </span>
+            <span className="text-white">
+              Numbers
+            </span>
           </h1>
           <p className="text-slate-400 text-sm">Crie sua conta para começar.</p>
         </div>
@@ -113,12 +127,10 @@ export default function RegistoPage() {
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seuemail@exemplo.com" className={inputClass} required />
           </div>
 
-          {/* 🆕 Campo de Telefone com Seletor de Países */}
+          {/* Campo de Telefone com Seletor de Países */}
           <div>
             <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Número de Telefone</label>
             <div className="flex gap-2">
-              
-              {/* Botão que abre o Modal de Países */}
               <button 
                 type="button"
                 onClick={() => setModalPaisAberto(true)}
@@ -130,7 +142,6 @@ export default function RegistoPage() {
 
               <input type="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="84XXXXXXX" className={`${inputClass} flex-1`} required />
             </div>
-            {/* 🆕 Mostra o país de residência inferido automaticamente */}
             <p className="text-xs text-slate-500 mt-1">País de residência: <span className="text-cyan-400 font-bold">{paisSelecionado.name}</span></p>
           </div>
 
@@ -177,18 +188,16 @@ export default function RegistoPage() {
         </div>
       </div>
 
-      {/* 🆕 MODAL DE SELEÇÃO DE PAÍS COM LUPA DE PESQUISA */}
+      {/* MODAL DE SELEÇÃO DE PAÍS COM LUPA DE PESQUISA */}
       {modalPaisAberto && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[100] backdrop-blur-sm">
           <div className="bg-white w-full max-w-md rounded-2xl flex flex-col max-h-[80vh] overflow-hidden shadow-2xl">
             
-            {/* Cabeçalho do Modal */}
             <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
               <h3 className="font-bold text-gray-800">Selecione o País</h3>
               <button onClick={() => setModalPaisAberto(false)} className="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
             </div>
 
-            {/* Barra de Pesquisa (Lupa) */}
             <div className="p-4 bg-white border-b border-gray-100">
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
@@ -203,7 +212,6 @@ export default function RegistoPage() {
               </div>
             </div>
 
-            {/* Lista de Países com Scroll */}
             <div className="flex-1 overflow-y-auto p-2">
               {paisesFiltrados.length > 0 ? (
                 paisesFiltrados.map((pais) => (
