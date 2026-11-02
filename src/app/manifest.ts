@@ -1,26 +1,34 @@
-// src/app/manifest.ts
-import { MetadataRoute } from 'next';
-
+// src/app/manifest.ts (ou atualiza o teu public/manifest.json com isto)
+import { MetadataRoute } from 'next'
+ 
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'Konnex Numbers',
     short_name: 'Konnex',
     description: 'Números virtuais para verificação de SMS.',
-    start_url: '/dashboard',
-    display: 'standalone', // Isto faz com que abra em ecrã inteiro (sem barra do navegador)
-    background_color: '#0f172a', // Cor de fundo do Splash (igual ao Dashboard)
-    theme_color: '#0f172a',      // Cor da barra de estado do telemóvel
+    start_url: '/',
+    display: 'standalone',
+    background_color: '#0f172a',
+    theme_color: '#0f172a',
     icons: [
       {
-        src: '/incon-k.jpeg', // O ícone que já tens no projeto
+        src: '/incon.png', 
         sizes: '192x192',
-        type: 'image/jpeg',
+        type: 'image/png',
+        purpose: 'any'
       },
       {
-        src: '/incon-k.jpeg',
+        src: '/incon.png', 
         sizes: '512x512',
-        type: 'image/jpeg',
+        type: 'image/png',
+        purpose: 'any'
       },
+      {
+        src: '/incon.png', 
+        sizes: '512x512',
+        type: 'image/png',
+        purpose: 'maskable' // Isto ajuda o Android a encaixar a imagem na forma do ícone
+      }
     ],
-  };
+  }
 }
