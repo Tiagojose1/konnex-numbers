@@ -10,7 +10,7 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "Konnex Numbers | Números Virtuais",
   description: "Números virtuais para verificação de SMS.",
-  manifest: "/manifest.webmanifest", // Liga ao manifesto criado no Passo 1
+  manifest: "/manifest.webmanifest", // Garante que o navegador encontra o manifesto
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -20,8 +20,9 @@ export const metadata: Metadata = {
     telephone: false,
   },
   icons: {
-    icon: "/incon-k.png",
-    apple: "/incon-k.png", // Ícone que aparece no ecrã inicial do iPhone
+    // 🆕 Atualizado para o teu ficheiro com fundo azul escuro
+    icon: "/incone.jpeg",
+    apple: "/incone.jpeg", // Ícone que aparece no ecrã inicial do iPhone
   },
 };
 

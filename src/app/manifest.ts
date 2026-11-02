@@ -1,4 +1,4 @@
-// src/app/manifest.ts (ou atualiza o teu public/manifest.json com isto)
+// src/app/manifest.ts
 import { MetadataRoute } from 'next'
  
 export default function manifest(): MetadataRoute.Manifest {
@@ -12,22 +12,22 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: '#0f172a',
     icons: [
       {
-        src: '/incon.png', 
+        src: '/incone.jpeg', // 🆕 Nome exato do teu ficheiro
         sizes: '192x192',
-        type: 'image/png',
+        type: 'image/jpeg',
         purpose: 'any'
       },
       {
-        src: '/incon.png', 
+        src: '/incone.jpeg', // 🆕 Nome exato do teu ficheiro
         sizes: '512x512',
-        type: 'image/png',
+        type: 'image/jpeg',
         purpose: 'any'
       },
       {
-        src: '/incon.png', 
+        src: '/incone.jpeg', // 🆕 Nome exato do teu ficheiro
         sizes: '512x512',
-        type: 'image/png',
-        purpose: 'maskable' // Isto ajuda o Android a encaixar a imagem na forma do ícone
+        type: 'image/jpeg',
+        purpose: 'maskable' // Isto faz preencher o quadrado todo no Android
       }
     ],
   }
