@@ -69,14 +69,24 @@ export default function LandingPage() {
           </div>
         )}
 
-        {(phase === 'icon' || phase === 'fading') && (
+                {(phase === 'icon' || phase === 'fading') && (
           <div className="flex flex-col items-center">
-            {/* 🆕 Ícone PNG transparente, sem sombras ou fundos */}
-            <img src="/icone.png" alt="Konnex Numbers" className="w-40 h-40 logo-fade-in object-contain" />
-            <h1 className="text-white text-xl font-bold mt-6 logo-fade-in">Konnex Numbers</h1>
+            {/* 🆕 A imagem agora tem o nome correto do teu ficheiro: incon.png */}
+            <img src="/incon.png" alt="Konnex Numbers" className="w-32 h-32 logo-fade-in object-contain" />
+            
+            {/* 🆕 Texto com o gradiente e o estilo igual à foto que enviaste */}
+            <h1 className="text-3xl font-black tracking-tight mt-6 logo-fade-in flex items-center gap-2">
+              <span className="bg-gradient-to-r from-violet-500 via-blue-500 to-cyan-400 bg-clip-text text-transparent">
+                Konnex
+              </span>
+              <span className="text-white">
+                Numbers
+              </span>
+            </h1>
           </div>
         )}
 
+        {/* Barra de Progresso e Texto de Status */}
         <div className="absolute bottom-16 w-4/5 max-w-md">
           <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden mb-3">
             <div 
