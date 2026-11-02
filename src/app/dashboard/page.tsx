@@ -59,8 +59,8 @@ export default function DashboardPage() {
       <header className="bg-[#0f172a] sticky top-0 z-50 px-4 py-3 shadow-lg">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            {/* 🆕 Imagem limpa e transparente */}
-            <img src="/icone.png" alt="Konnex" className="h-10 w-10 object-contain" />
+            {/* 🆕 Imagem corrigida para /incon.png */}
+            <img src="/incon.png" alt="Konnex" className="h-10 w-10 object-contain" />
             <div className="flex flex-col">
               <span className="text-sm font-extrabold tracking-tight leading-tight">
                 <span className="bg-gradient-to-r from-violet-500 via-blue-500 to-cyan-400 bg-clip-text text-transparent">Konnex</span>
@@ -71,12 +71,13 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            <button className="text-white relative">
+            {/* 🆕 Sino de notificação agora é um link funcional */}
+            <Link href="/em-breve?feature=Notificações" className="text-white relative hover:text-cyan-400 transition-colors">
               <span className="text-lg">🔔</span>
-            </button>
-            <button className="text-white">
-              <span className="text-lg">🎁</span>
-            </button>
+            </Link>
+            
+            {/* 🆕 O botão do presente (🎁) foi removido daqui */}
+            
             <Link href="/saldo" className="bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold py-1.5 px-3 rounded-md text-[10px] transition-colors">
               DEPOSITAR
             </Link>
