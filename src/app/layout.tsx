@@ -20,8 +20,8 @@ export const metadata: Metadata = {
     telephone: false,
   },
   icons: {
-    icon: "/incon-k.jpeg",
-    apple: "/incon-k.jpeg", // Ícone que aparece no ecrã inicial do iPhone
+    icon: "/incon-k.png",
+    apple: "/incon-k.png", // Ícone que aparece no ecrã inicial do iPhone
   },
 };
 

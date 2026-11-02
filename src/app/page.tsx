@@ -57,32 +57,34 @@ export default function LandingPage() {
     };
   }, [router]);
 
-  // ===== SPLASH SCREEN (Azul Suave) =====
+  // ===== SPLASH SCREEN (Azul Escuro Limpo) =====
   if (phase === 'logo' || phase === 'icon' || phase === 'fading') {
     return (
-      <div className={`min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden bg-gradient-to-br from-[#2563eb] to-[#06b6d4] ${phase === 'fading' ? 'fade-out' : ''}`}>
+      <div className={`min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden bg-[#0f172a] ${phase === 'fading' ? 'fade-out' : ''}`}>
         
         {phase === 'logo' && (
           <div className="flex flex-col items-center">
-            <img src="/logo.jpeg" alt="Konnex Numbers" className="w-80 h-auto logo-fade-in drop-shadow-2xl rounded-3xl" />
+            {/* 🆕 Logo PNG transparente, sem sombras ou fundos */}
+            <img src="/logo.png" alt="Konnex Numbers" className="w-72 h-auto logo-fade-in object-contain" />
           </div>
         )}
 
         {(phase === 'icon' || phase === 'fading') && (
           <div className="flex flex-col items-center">
-            <img src="/incon-k.jpeg" alt="Konnex Numbers" className="w-40 h-40 rounded-3xl shadow-2xl logo-fade-in object-contain drop-shadow-2xl" />
-            <h1 className="text-white text-xl font-bold mt-6 logo-fade-in drop-shadow-md">Konnex Numbers</h1>
+            {/* 🆕 Ícone PNG transparente, sem sombras ou fundos */}
+            <img src="/icone.png" alt="Konnex Numbers" className="w-40 h-40 logo-fade-in object-contain" />
+            <h1 className="text-white text-xl font-bold mt-6 logo-fade-in">Konnex Numbers</h1>
           </div>
         )}
 
         <div className="absolute bottom-16 w-4/5 max-w-md">
-          <div className="w-full h-1.5 bg-white/20 rounded-full overflow-hidden mb-3 backdrop-blur-sm">
+          <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden mb-3">
             <div 
-              className="h-full rounded-full transition-all duration-100 ease-linear shadow-[0_0_10px_rgba(255,255,255,0.8)]" 
-              style={{ width: `${progress}%`, background: '#ffffff' }}
+              className="h-full rounded-full transition-all duration-100 ease-linear shadow-[0_0_10px_rgba(34,211,238,0.8)]" 
+              style={{ width: `${progress}%`, background: '#22d3ee' }}
             ></div>
           </div>
-          <p className="text-white text-sm text-center font-medium drop-shadow-md">{statusText}</p>
+          <p className="text-slate-400 text-sm text-center font-medium">{statusText}</p>
         </div>
       </div>
     );
@@ -96,14 +98,15 @@ export default function LandingPage() {
     );
   }
 
-  // ===== LANDING PAGE (Fundo Escuro Profissional) =====
+  // ===== LANDING PAGE =====
   return (
     <div className="min-h-screen bg-slate-950 font-sans text-white">
       
       {/* Menu Superior */}
       <nav className="bg-slate-900/80 backdrop-blur-md border-b border-slate-800 fixed w-full top-0 z-50">
         <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
-          <img src="/logo.jpeg" alt="Konnex Numbers" className="h-10 rounded-lg object-contain" />
+          {/* 🆕 Logo PNG transparente */}
+          <img src="/logo.png" alt="Konnex Numbers" className="h-10 object-contain" />
           <div className="flex gap-3">
             <Link href="/login" className="text-slate-300 hover:text-white font-medium py-2 px-4 transition-colors">
               Entrar
@@ -159,7 +162,8 @@ export default function LandingPage() {
       {/* Rodapé */}
       <footer className="bg-black text-slate-500 py-12 text-center border-t border-slate-900">
         <div className="max-w-4xl mx-auto px-6">
-          <img src="/logo.jpeg" alt="Konnex Numbers" className="h-12 mx-auto mb-4 brightness-0 invert opacity-50 rounded-lg object-contain" />
+          {/* 🆕 Logo PNG transparente no rodapé */}
+          <img src="/logo.png" alt="Konnex Numbers" className="h-12 mx-auto mb-4 opacity-50 object-contain" />
           <p className="mb-6">© 2026 Konnex Numbers. Todos os direitos reservados.</p>
           <div className="flex justify-center gap-6 text-sm">
             <Link href="#" className="hover:text-blue-400 transition-colors">Termos de Uso</Link>

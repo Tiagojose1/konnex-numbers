@@ -59,7 +59,8 @@ export default function DashboardPage() {
       <header className="bg-[#0f172a] sticky top-0 z-50 px-4 py-3 shadow-lg">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <img src="/logo.jpeg" alt="Konnex" className="h-9 w-9 rounded-full border border-slate-700 object-cover" />
+            {/* 🆕 Imagem limpa e transparente */}
+            <img src="/icone.png" alt="Konnex" className="h-10 w-10 object-contain" />
             <div className="flex flex-col">
               <span className="text-sm font-extrabold tracking-tight leading-tight">
                 <span className="bg-gradient-to-r from-violet-500 via-blue-500 to-cyan-400 bg-clip-text text-transparent">Konnex</span>
@@ -100,7 +101,7 @@ export default function DashboardPage() {
 
       <div className="max-w-4xl mx-auto p-4">
         
-        {/* ===== SERVIÇOS DO FUTURO / RECOMPENSAS (ÍCONES MENORES) ===== */}
+        {/* ===== SERVIÇOS DO FUTURO / RECOMPENSAS ===== */}
         <div className="flex overflow-x-auto gap-4 pb-4 scrollbar-hide -mx-4 px-4 mb-2 justify-between">
           {[
             { icon: '🌍', label: 'Chamadas e SIM', link: '/em-breve' },
