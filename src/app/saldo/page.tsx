@@ -5,7 +5,6 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
-// 🆕 Importa a função correta: converterParaUSD
 import { formatarMoeda, CURRENCY_SYMBOLS, converterParaUSD } from '@/lib/currencies'; 
 
 export default function AdicionarSaldoPage() {
@@ -76,7 +75,7 @@ export default function AdicionarSaldoPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           userId: session.user.id, 
-          valor: valorEmUSD, // 🆕 Envia em USD
+          valor: valorEmUSD, // 🆕 Envia em USD para a base de dados
           metodo: metodo,
           telefone: telefone
         }),
@@ -140,7 +139,6 @@ export default function AdicionarSaldoPage() {
 
       <div className="bg-gradient-to-r from-purple-600 to-blue-500 rounded-2xl p-4 text-white shadow-lg mb-6">
         <p className="text-purple-100 text-xs font-medium">Saldo Atual</p>
-        {/* O formatarMoeda converte o valor em USD da base de dados para a moeda local do utilizador */}
         <h2 className="text-3xl font-bold">{formatarMoeda(saldoAtual, currency)}</h2>
       </div>
 

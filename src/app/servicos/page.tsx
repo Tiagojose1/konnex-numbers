@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner'; 
 import { supabase } from '@/lib/supabase';
-import { formatarMoeda } from '@/lib/currencies'; // 🆕 Importa formatarMoeda
+import { formatarMoeda } from '@/lib/currencies'; 
 import { countries, getCountry, Country } from '@/data/countries';
 import { services, Service } from '@/data/services';
 import { getPrice } from '@/data/pricesByCountry';
@@ -62,7 +62,7 @@ export default function ServicosPage() {
         return;
     }
 
-    // 🆕 O preço já está em USD no pricesByCountry. Vamos enviá-lo diretamente.
+    // 🆕 O preço já vem em USD do pricesByCountry. Enviamos diretamente.
     const valorEmUSD = precoInfo.price || 0;
 
     const toastId = toast.loading("A processar o seu pedido...");
@@ -166,7 +166,6 @@ export default function ServicosPage() {
                                   </div>
                                 </div>
                                 <div className="text-right flex items-center gap-4">
-                                  {/* 🆕 Formata o preço de USD para a moeda local */}
                                   <span className="text-yellow-400 font-bold whitespace-nowrap">
                                     {formatarMoeda(precoInfo.price || 0, pais.currency)}
                                   </span>
@@ -198,7 +197,6 @@ export default function ServicosPage() {
                                   </div>
                                 </div>
                                 <div className="text-right flex items-center gap-4">
-                                  {/* 🆕 Formata o preço de USD para a moeda local */}
                                   <span className="text-yellow-400 font-bold whitespace-nowrap">
                                     {formatarMoeda(precoInfo.price || 0, pais.currency)}
                                   </span>
@@ -241,7 +239,6 @@ export default function ServicosPage() {
                   <span className="text-xs text-slate-400">Gerado pelo sistema</span>
                 </div>
                 <span className="text-yellow-400 font-bold">
-                  {/* 🆕 Formata o preço no modal */}
                   {formatarMoeda(getPrice(servicoSelecionado.id, paisSelecionadoParaCompra.id, 'random')?.price || 0, paisSelecionadoParaCompra.currency)}
                 </span>
               </button>
@@ -252,7 +249,6 @@ export default function ServicosPage() {
                   <span className="text-xs text-purple-200">Escolha os dígitos finais</span>
                 </div>
                 <span className="text-yellow-300 font-bold">
-                  {/* 🆕 Formata o preço no modal */}
                   {formatarMoeda(getPrice(servicoSelecionado.id, paisSelecionadoParaCompra.id, 'custom')?.price || 0, paisSelecionadoParaCompra.currency)}
                 </span>
               </button>
