@@ -72,7 +72,7 @@ export const services: Service[] = [
   service('medium', 'Medium', 'technology'),
   service('quora', 'Quora', 'technology'),
 
-  // ─── BANCOS E FINANÇAS (LOCAIS E GLOBAIS) ───
+  // ─── BANCOS E FINANÇAS ───
   service('wise', 'Wise', 'finance'),
   service('paypal', 'PayPal', 'finance'),
   service('coinbase', 'Coinbase', 'finance'),
@@ -198,7 +198,7 @@ export const services: Service[] = [
   service('muzz', 'Muzz', 'dating'),
   service('loves', 'Loves', 'dating'),
 
-  // ─── OUTROS E "QUALQUER SERVIÇO" ───
+  // ─── OUTROS ───
   service('reddit', 'Reddit', 'other'),
   service('pinterest', 'Pinterest', 'other'),
   service('fiverr', 'Fiverr', 'other'),
@@ -208,7 +208,6 @@ export const services: Service[] = [
   service('starbucks', 'Starbucks', 'other'),
   service('nike_other', 'Nike (Loja)', 'other', 'nike'),
   
-  // 🌟 A OPÇÃO MÁGICA DE PESQUISA (Mantém-se no final)
   { id: 'anyother', name: 'Qualquer Serviço (Pesquisar)', category: 'other', logo: 'https://cdn.simpleicons.org/amp' },
 ];
 
