@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 // src/app/saldo/page.tsx
 'use client';
 
@@ -5,11 +6,11 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
-import { formatarMoeda, CURRENCY_SYMBOLS, converterParaUSD } from '@/lib/currencies'; 
+import { formatarMoeda, CURRENCY_SYMBOLS, RATES } from '@/lib/currencies'; 
 
 export default function AdicionarSaldoPage() {
   const router = useRouter();
-  const [valor, setValor] = useState<number>(10);
+  const [valorUSD, setValorUSD] = useState<number>(3.20);
   const [metodo, setMetodo] = useState<string>('');
   const [mensagem, setMensagem] = useState<string>('');
   const [aProcessar, setAProcessar] = useState(false);
@@ -19,6 +20,12 @@ export default function AdicionarSaldoPage() {
   
   const [telefone, setTelefone] = useState('');
   const [referenciaGerada, setReferenciaGerada] = useState('');
+  
+  // 🆕 Estados para o Cartão de Crédito
+  const [numeroCartao, setNumeroCartao] = useState('');
+  const [bandeiraCartao, setBandeiraCartao] = useState<string | null>(null);
+
+  const valoresPadraoUSD = [3.20, 4.00, 5.00, 6.00, 8.00, 10.00];
 
   useEffect(() => {
     const carregarSaldo = async () => {
@@ -40,15 +47,36 @@ export default function AdicionarSaldoPage() {
     carregarSaldo();
   }, [router]);
 
+  // 🆕 Função que deteta a bandeira/banco pelo número do cartão
+  const handleCartaoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let valor = e.target.value.replace(/\D/g, ''); // Remove tudo o que não for número
+    if (valor.length > 16) valor = valor.slice(0, 16); // Limita a 16 dígitos
+    
+    // Formata com espaços (ex: 1234 5678 9012 3456)
+    const formatado = valor.replace(/(\d{4})(?=\d)/g, '$1 ');
+    setNumeroCartao(formatado);
+
+    // 🕵️ Lógica de deteção (BIN)
+    if (valor.startsWith('4')) {
+      setBandeiraCartao('Visa');
+    } else if (valor.startsWith('5') || valor.startsWith('2')) {
+      setBandeiraCartao('Mastercard');
+    } else if (valor.startsWith('34') || valor.startsWith('37')) {
+      setBandeiraCartao('American Express');
+    } else if (valor.startsWith('6')) {
+      setBandeiraCartao('Discover');
+    } else if (valor.startsWith('50') || valor.startsWith('88')) {
+      setBandeiraCartao('BCI / BIM (Moçambique)');
+    } else {
+      setBandeiraCartao(null);
+    }
+  };
+
   const handlePagamento = async () => {
-    if (!metodo) {
-      setMensagem('Por favor, selecione um método de pagamento.');
-      return;
-    }
-    if ((metodo === 'M-Pesa' || metodo === 'e-Mola') && !telefone) {
-      setMensagem('Por favor, insira o número de telefone para o ' + metodo);
-      return;
-    }
+    if (!metodo) return setMensagem('Por favor, selecione um método de pagamento.');
+    if ((metodo === 'M-Pesa' || metodo === 'e-Mola') && !telefone) return setMensagem('Por favor, insira o número de telefone.');
+    if (metodo === 'Cartão de Crédito' && numeroCartao.replace(/\s/g, '').length < 16) return setMensagem('Insira um número de cartão válido (16 dígitos).');
+    
     if (metodo === 'Transferência') {
       const ref = Math.floor(100000000 + Math.random() * 900000000).toString();
       setReferenciaGerada(ref);
@@ -66,16 +94,13 @@ export default function AdicionarSaldoPage() {
       return;
     }
 
-    // 🆕 Converte o valor local (ex: 100 MT) para USD (para o backend guardar em USD)
-    const valorEmUSD = converterParaUSD(valor, currency);
-
     try {
       const resposta = await fetch('/api/adicionar-saldo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           userId: session.user.id, 
-          valor: valorEmUSD, // 🆕 Envia em USD para a base de dados
+          valor: valorUSD,
           metodo: metodo,
           telefone: telefone
         }),
@@ -90,7 +115,7 @@ export default function AdicionarSaldoPage() {
           setMensagem(dados.mensagem);
         } else {
           setMensagem('');
-          setDepositoConfirmado(valor); // Mostra o valor local no ecrã verde
+          setDepositoConfirmado(valorUSD * (RATES[currency] || 1)); 
         }
       }
     } catch (error) {
@@ -99,7 +124,7 @@ export default function AdicionarSaldoPage() {
     setAProcessar(false);
   };
 
-  // ===== TELA DE CONFIRMAÇÃO DE DEPÓSITO =====
+  // ===== TELA DE CONFIRMAÇÃO =====
   if (depositoConfirmado !== null) {
     const simbolo = CURRENCY_SYMBOLS[currency] || currency;
     return (
@@ -115,7 +140,7 @@ export default function AdicionarSaldoPage() {
           <h1 className="text-3xl font-bold text-white mb-4">Depósito confirmado</h1>
           <p className="text-slate-400 text-lg mb-2">Montante do depósito:</p>
           <p className="text-4xl font-extrabold text-white mb-12">
-            {depositoConfirmado.toFixed(2)} {simbolo}
+            {depositoConfirmado.toLocaleString('pt-PT')} {simbolo}
           </p>
           <button
             onClick={() => { setDepositoConfirmado(null); router.push('/dashboard'); }}
@@ -130,94 +155,140 @@ export default function AdicionarSaldoPage() {
 
   // ===== FORMULÁRIO NORMAL =====
   const simbolo = CURRENCY_SYMBOLS[currency] || currency;
+  const taxa = RATES[currency] || 1;
+
+  const metodosPagamento = [
+    { id: 'M-Pesa', icone: '/m-pesa.png' },
+    { id: 'e-Mola', icone: '/e-mola.png' },
+    { id: 'Cartão de Crédito', icone: '/cartao-de-credito.webp' }, // 🆕 Imagem que adicionaste
+    { id: 'Transferência', icone: 'https://cdn-icons-png.flaticon.com/512/2830/2830284.png' }
+  ];
+
   return (
-    <div className="p-8 max-w-2xl mx-auto min-h-screen bg-gray-50 pb-24">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Adicionar Saldo</h1>
-        <p className="text-gray-500">Escolha o valor e o método de pagamento.</p>
+    <div className="p-4 max-w-2xl mx-auto min-h-screen bg-gray-50 pb-24">
+      <div className="mb-4">
+        <h1 className="text-xl font-bold text-gray-900">Adicionar Saldo</h1>
+        <p className="text-gray-500 text-sm">Escolha o valor e o método de pagamento.</p>
       </div>
 
-      <div className="bg-gradient-to-r from-purple-600 to-blue-500 rounded-2xl p-4 text-white shadow-lg mb-6">
-        <p className="text-purple-100 text-xs font-medium">Saldo Atual</p>
-        <h2 className="text-3xl font-bold">{formatarMoeda(saldoAtual, currency)}</h2>
+      <div className="bg-gradient-to-r from-purple-600 to-blue-500 rounded-xl p-3 text-white shadow-md mb-4">
+        <p className="text-purple-100 text-[10px] uppercase font-bold tracking-wider">Saldo Atual</p>
+        <h2 className="text-2xl font-bold">{formatarMoeda(saldoAtual, currency)}</h2>
       </div>
 
-      <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-        <label className="block text-sm font-medium text-gray-700 mb-2">Escolha o valor ({simbolo})</label>
-        <div className="grid grid-cols-3 gap-4 mb-6">
-          {[10, 20, 50, 100, 200].map((v) => (
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+        
+        {/* VALORES EM USD */}
+        <label className="block text-xs font-bold text-gray-700 mb-2 uppercase tracking-wide">Escolha o valor (USD)</label>
+        <div className="grid grid-cols-3 gap-2 mb-5">
+          {valoresPadraoUSD.map((v) => (
             <button
               key={v}
-              onClick={() => setValor(v)}
-              className={`py-3 rounded-lg border font-semibold transition-all ${
-                valor === v ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-700 border-gray-300 hover:border-purple-400'
+              onClick={() => setValorUSD(v)}
+              className={`py-2 rounded-lg border transition-all flex flex-col items-center justify-center ${
+                valorUSD === v ? 'bg-purple-600 text-white border-purple-600 shadow-md' : 'bg-white text-gray-700 border-gray-300 hover:border-purple-400'
               }`}
             >
-              {v},00
+              <span className="text-sm font-bold">$ {v.toFixed(2)}</span>
+              <span className={`text-[10px] mt-0.5 ${valorUSD === v ? 'text-purple-200' : 'text-gray-500'}`}>
+                ≈ {simbolo} {(v * taxa).toFixed(2)}
+              </span>
             </button>
           ))}
         </div>
 
-        <label className="block text-sm font-medium text-gray-700 mb-2">Método de Pagamento</label>
-        <div className="grid grid-cols-2 gap-4 mb-6">
-          {['M-Pesa', 'e-Mola', 'Cartão de Crédito', 'Transferência'].map((m) => (
+        {/* MÉTODOS DE PAGAMENTO */}
+        <label className="block text-xs font-bold text-gray-700 mb-2 uppercase tracking-wide">Método de Pagamento</label>
+        <div className="grid grid-cols-2 gap-2 mb-5">
+          {metodosPagamento.map((m) => (
             <button
-              key={m}
-              onClick={() => { setMetodo(m); setMensagem(''); setReferenciaGerada(''); }}
-              className={`py-3 rounded-lg border font-semibold transition-all ${
-                metodo === m ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-700 border-gray-300 hover:border-purple-400'
+              key={m.id}
+              onClick={() => { setMetodo(m.id); setMensagem(''); setReferenciaGerada(''); }}
+              className={`py-2 px-3 rounded-lg border flex items-center gap-2 transition-all ${
+                metodo === m.id ? 'bg-purple-50 border-purple-600 ring-1 ring-purple-600' : 'bg-white border-gray-300 hover:border-purple-400'
               }`}
             >
-              {m}
+              <div className="w-8 h-8 bg-white rounded-md flex items-center justify-center overflow-hidden p-1">
+                <img src={m.icone} alt={m.id} className="w-full h-full object-contain" />
+              </div>
+              <span className={`text-sm font-semibold ${metodo === m.id ? 'text-purple-700' : 'text-gray-700'}`}>
+                {m.id}
+              </span>
             </button>
           ))}
         </div>
 
+        {/* INPUTS DINÂMICOS */}
         {(metodo === 'M-Pesa' || metodo === 'e-Mola') && (
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Número de Telefone</label>
-            <input type="tel" placeholder="Ex: 84XXXXXXX" value={telefone} onChange={(e) => setTelefone(e.target.value)} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 outline-none" />
+          <div className="mb-4">
+            <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wide">Número de Telefone</label>
+            <input type="tel" placeholder="Ex: 84XXXXXXX" value={telefone} onChange={(e) => setTelefone(e.target.value)} className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 outline-none text-sm" />
           </div>
         )}
 
+        {/* 🆕 INPUT DE CARTÃO COM DETEÇÃO AUTOMÁTICA */}
         {metodo === 'Cartão de Crédito' && (
-          <div className="mb-6 space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-            <p className="text-xs text-gray-500">🔒 Ambiente seguro. Os dados não são guardados.</p>
-            <input type="text" placeholder="Número do Cartão" className="w-full p-3 border border-gray-300 rounded-lg" />
-            <div className="grid grid-cols-2 gap-4">
-              <input type="text" placeholder="MM/AA" className="w-full p-3 border border-gray-300 rounded-lg" />
-              <input type="text" placeholder="CVV" className="w-full p-3 border border-gray-300 rounded-lg" />
+          <div className="mb-4 space-y-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+            <div className="flex justify-between items-center mb-2">
+              <p className="text-[10px] text-gray-500 font-bold">🔒 Ambiente seguro.</p>
+              {bandeiraCartao && (
+                <span className="text-[10px] font-bold text-purple-600 bg-purple-100 px-2 py-0.5 rounded-full">
+                  {bandeiraCartao}
+                </span>
+              )}
             </div>
-            <input type="text" placeholder="Nome no Cartão" className="w-full p-3 border border-gray-300 rounded-lg" />
+            
+            <div className="relative">
+              <input 
+                type="text" 
+                placeholder="0000 0000 0000 0000" 
+                value={numeroCartao}
+                onChange={handleCartaoChange}
+                maxLength={19}
+                className="w-full p-2.5 border border-gray-300 rounded-lg text-sm pr-10" 
+              />
+              {/* 🆕 Ícone que aparece dentro do input quando deteta a bandeira */}
+              {bandeiraCartao && (
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">
+                   {bandeiraCartao === 'Visa' ? 'VISA' : bandeiraCartao === 'Mastercard' ? 'MC' : '✓'}
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <input type="text" placeholder="MM/AA" className="w-full p-2.5 border border-gray-300 rounded-lg text-sm" />
+              <input type="text" placeholder="CVV" className="w-full p-2.5 border border-gray-300 rounded-lg text-sm" />
+            </div>
+            <input type="text" placeholder="Nome no Cartão" className="w-full p-2.5 border border-gray-300 rounded-lg text-sm" />
           </div>
         )}
 
         {metodo === 'Transferência' && referenciaGerada && (
-          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <h3 className="font-bold text-blue-800 mb-2">Dados para Pagamento</h3>
-            <p className="text-sm text-blue-700 mb-1">Entidade: <span className="font-mono font-bold">00123</span></p>
-            <p className="text-sm text-blue-700 mb-1">Referência: <span className="font-mono font-bold text-lg">{referenciaGerada}</span></p>
-            <p className="text-sm text-blue-700 mb-1">Valor: <span className="font-bold">{valor},00 {simbolo}</span></p>
-            <p className="text-xs text-blue-600 mt-2">Após efetuar o pagamento, clique em "JÁ PAGUEI".</p>
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <h3 className="font-bold text-blue-800 text-sm mb-1">Dados para Pagamento</h3>
+            <p className="text-xs text-blue-700 mb-1">Entidade: <span className="font-mono font-bold">00123</span></p>
+            <p className="text-xs text-blue-700 mb-1">Referência: <span className="font-mono font-bold text-base">{referenciaGerada}</span></p>
+            <p className="text-xs text-blue-700 mb-1">Valor: <span className="font-bold">$ {valorUSD.toFixed(2)} (≈ {simbolo} {(valorUSD * taxa).toFixed(2)})</span></p>
+            <p className="text-[10px] text-blue-600 mt-1">Após pagar, clique em "JÁ PAGUEI".</p>
           </div>
         )}
 
-        <button onClick={handlePagamento} disabled={aProcessar} className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 rounded-lg transition-colors shadow-md disabled:opacity-50">
+        <button onClick={handlePagamento} disabled={aProcessar} className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3.5 rounded-lg transition-colors shadow-md disabled:opacity-50 text-sm">
           {aProcessar ? 'A processar...' : (metodo === 'Transferência' && referenciaGerada ? 'JÁ PAGUEI' : 'CONFIRMAR PAGAMENTO')}
         </button>
 
         {mensagem && (
-          <div className={`mt-4 p-4 rounded-lg text-center font-medium border ${mensagem.includes('Erro') || mensagem.includes('Por favor') ? 'bg-red-50 text-red-800 border-red-200' : 'bg-blue-50 text-blue-800 border-blue-200'}`}>
+          <div className={`mt-3 p-3 rounded-lg text-center text-xs font-medium border ${mensagem.includes('Erro') || mensagem.includes('Por favor') ? 'bg-red-50 text-red-800 border-red-200' : 'bg-blue-50 text-blue-800 border-blue-200'}`}>
             {mensagem}
           </div>
         )}
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around py-3 px-4 shadow-lg md:hidden">
-        <Link href="/dashboard" className="flex flex-col items-center text-gray-400 hover:text-purple-600 transition-colors"><span className="text-xl">🏠</span><span className="text-xs font-medium mt-1">Início</span></Link>
-        <Link href="/servicos" className="flex flex-col items-center text-gray-400 hover:text-purple-600 transition-colors"><span className="text-xl">🌐</span><span className="text-xs font-medium mt-1">Serviços</span></Link>
-        <Link href="/saldo" className="flex flex-col items-center text-purple-600"><span className="text-xl">💰</span><span className="text-xs font-medium mt-1">Saldo</span></Link>
-        <Link href="/perfil" className="flex flex-col items-center text-gray-400 hover:text-purple-600 transition-colors"><span className="text-xl">👤</span><span className="text-xs font-medium mt-1">Perfil</span></Link>
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around py-2 px-4 shadow-lg md:hidden z-50">
+        <Link href="/dashboard" className="flex flex-col items-center text-gray-400 hover:text-purple-600 transition-colors"><span className="text-lg">🏠</span><span className="text-[10px] font-medium mt-1">Início</span></Link>
+        <Link href="/servicos" className="flex flex-col items-center text-gray-400 hover:text-purple-600 transition-colors"><span className="text-lg">🌐</span><span className="text-[10px] font-medium mt-1">Serviços</span></Link>
+        <Link href="/saldo" className="flex flex-col items-center text-purple-600"><span className="text-lg">💰</span><span className="text-[10px] font-bold mt-1">Saldo</span></Link>
+        <Link href="/perfil" className="flex flex-col items-center text-gray-400 hover:text-purple-600 transition-colors"><span className="text-lg">👤</span><span className="text-[10px] font-medium mt-1">Perfil</span></Link>
       </div>
     </div>
   );
