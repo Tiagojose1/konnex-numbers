@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner'; 
 import { supabase } from '@/lib/supabase';
-import { formatarMoeda } from '@/lib/currencies'; 
+import { formatarMoeda, CURRENCY_SYMBOLS } from '@/lib/currencies'; // 🆕 Importa os símbolos
 import { countries, getCountry, Country } from '@/data/countries';
 import { services, Service } from '@/data/services';
 import { getPrice } from '@/data/pricesByCountry';
@@ -62,7 +62,8 @@ export default function ServicosPage() {
         return;
     }
 
-    // 🆕 O preço já vem em USD do pricesByCountry. Enviamos diretamente.
+    // 🆕 O preço que vem do pricesByCountry já está em USD. 
+    // Na hora da compra, o backend vai descontar este valor em USD da conta do utilizador.
     const valorEmUSD = precoInfo.price || 0;
 
     const toastId = toast.loading("A processar o seu pedido...");
@@ -166,8 +167,9 @@ export default function ServicosPage() {
                                   </div>
                                 </div>
                                 <div className="text-right flex items-center gap-4">
+                                  {/* 🆕 FORÇA A EXIBIÇÃO EM USD AQUI */}
                                   <span className="text-yellow-400 font-bold whitespace-nowrap">
-                                    {formatarMoeda(precoInfo.price || 0, pais.currency)}
+                                    $ {precoInfo.price?.toFixed(2)}
                                   </span>
                                   <button onClick={() => abrirModalCompra(servico, pais.id)} disabled={aProcessar === servico.id} className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-2 px-4 rounded transition-colors disabled:opacity-50">
                                     {aProcessar === servico.id ? '...' : 'OBTER'}
@@ -197,8 +199,9 @@ export default function ServicosPage() {
                                   </div>
                                 </div>
                                 <div className="text-right flex items-center gap-4">
+                                  {/* 🆕 FORÇA A EXIBIÇÃO EM USD AQUI */}
                                   <span className="text-yellow-400 font-bold whitespace-nowrap">
-                                    {formatarMoeda(precoInfo.price || 0, pais.currency)}
+                                    $ {precoInfo.price?.toFixed(2)}
                                   </span>
                                   <button onClick={() => abrirModalCompra(servico, pais.id)} disabled={aProcessar === servico.id} className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-2 px-4 rounded transition-colors disabled:opacity-50">
                                     {aProcessar === servico.id ? '...' : 'OBTER'}
@@ -239,7 +242,8 @@ export default function ServicosPage() {
                   <span className="text-xs text-slate-400">Gerado pelo sistema</span>
                 </div>
                 <span className="text-yellow-400 font-bold">
-                  {formatarMoeda(getPrice(servicoSelecionado.id, paisSelecionadoParaCompra.id, 'random')?.price || 0, paisSelecionadoParaCompra.currency)}
+                  {/* 🆕 FORÇA A EXIBIÇÃO EM USD NO MODAL */}
+                  $ {getPrice(servicoSelecionado.id, paisSelecionadoParaCompra.id, 'random')?.price?.toFixed(2)}
                 </span>
               </button>
 
@@ -249,7 +253,8 @@ export default function ServicosPage() {
                   <span className="text-xs text-purple-200">Escolha os dígitos finais</span>
                 </div>
                 <span className="text-yellow-300 font-bold">
-                  {formatarMoeda(getPrice(servicoSelecionado.id, paisSelecionadoParaCompra.id, 'custom')?.price || 0, paisSelecionadoParaCompra.currency)}
+                  {/* 🆕 FORÇA A EXIBIÇÃO EM USD NO MODAL */}
+                  $ {getPrice(servicoSelecionado.id, paisSelecionadoParaCompra.id, 'custom')?.price?.toFixed(2)}
                 </span>
               </button>
             </div>
