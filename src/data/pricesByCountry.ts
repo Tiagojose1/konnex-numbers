@@ -13,95 +13,141 @@ export interface PriceEntry {
   };
 }
 
-// 🆕 Taxa de conversão atual (1 USD = 63.88 MZN)
-const RATE = 63.88;
+// 🆕 Definição Única de Preços em USD (Dólares)
+const PRECO_WHATSAPP = 3.20;
+const PRECO_RESTANTE = 2.50;
+const PRECO_VIP = 5.51;
 
-// 🆕 Função auxiliar para converter os teus preços de MZN para USD automaticamente
-const usd = (mzn: number) => Number((mzn / RATE).toFixed(2));
+// Função auxiliar para criar a estrutura de forma mais limpa
+const padrao = (disponivel: number) => ({
+  available: disponivel,
+  variants: { 
+    random: { price: PRECO_RESTANTE }, 
+    chooseDdi: { price: PRECO_RESTANTE }, 
+    custom: { price: PRECO_VIP } 
+  }
+});
+
+const padraoWhatsApp = (disponivel: number) => ({
+  available: disponivel,
+  variants: { 
+    random: { price: PRECO_WHATSAPP }, 
+    chooseDdi: { price: PRECO_WHATSAPP }, 
+    custom: { price: PRECO_VIP } 
+  }
+});
+
+const precoFixo = (disponivel: number) => ({
+  available: disponivel,
+  price: PRECO_RESTANTE
+});
 
 export const pricesByCountry: Record<string, Record<string, PriceEntry>> = {
-  // 🇲🇿 MOÇAMBIQUE (Preços base em MZN, convertidos para USD)
+  // 🇲🇿 MOÇAMBIQUE
   mz: {
-    whatsapp: { available: 838547, variants: { random: { price: usd(200) }, chooseDdi: { price: usd(300) }, custom: { price: usd(350) } } },
-    telegram: { available: 1482653, price: usd(150) },
-    facebook: { available: 102448, price: usd(150) },
-    instagram: { available: 1324981, price: usd(150) },
+    whatsapp: padraoWhatsApp(838547),
+    telegram: precoFixo(1482653),
+    facebook: precoFixo(102448),
+    instagram: precoFixo(1324981),
     
-    bci: { available: 1000, price: usd(150) },
-    bim: { available: 1000, price: usd(150) },
-    millenniumbim: { available: 1000, price: usd(150) },
-    standardbank_mz: { available: 1000, price: usd(150) },
-    absa_mz: { available: 1000, price: usd(150) },
-    bancounico: { available: 1000, price: usd(150) },
-    moza: { available: 1000, price: usd(150) },
+    bci: precoFixo(1000),
+    bim: precoFixo(1000),
+    millenniumbim: precoFixo(1000),
+    standardbank_mz: precoFixo(1000),
+    absa_mz: precoFixo(1000),
+    bancounico: precoFixo(1000),
+    moza: precoFixo(1000),
     
-    netflix: { available: 5000, variants: { random: { price: usd(250) }, chooseDdi: { price: usd(300) }, custom: { price: usd(350) } } },
-    spotify: { available: 3000, variants: { random: { price: usd(200) }, chooseDdi: { price: usd(250) }, custom: { price: usd(300) } } },
-    uber: { available: 10000, variants: { random: { price: usd(150) }, chooseDdi: { price: usd(200) }, custom: { price: usd(300) } } },
-    epicgames: { available: 2000, variants: { random: { price: usd(180) }, chooseDdi: { price: usd(230) }, custom: { price: usd(300) } } },
-    disney: { available: 1500, variants: { random: { price: usd(220) }, chooseDdi: { price: usd(270) }, custom: { price: usd(320) } } },
+    netflix: padrao(5000),
+    spotify: padrao(3000),
+    uber: padrao(10000),
+    epicgames: padrao(2000),
+    disney: padrao(1500),
     
-    anyother: { available: 73936, variants: { random: { price: usd(65) }, chooseDdi: { price: usd(265) }, custom: { price: usd(300) } } },
+    anyother: padrao(73936),
   },
 
-  // 🇧🇷 BRASIL (Preços base em BRL, convertidos para USD)
+  // 🇧🇷 BRASIL
   br: {
-    whatsapp: { available: 500000, variants: { random: { price: usd(15) }, chooseDdi: { price: usd(20) }, custom: { price: usd(25) } } },
-    telegram: { available: 620000, price: usd(10) },
-    facebook: { available: 850000, price: usd(10) },
-    instagram: { available: 940000, price: usd(10) },
-    nubank: { available: 5000, price: usd(10) }, itau: { available: 5000, price: usd(10) }, bradesco: { available: 5000, price: usd(10) },
-    bancodobrasil: { available: 5000, price: usd(10) }, caixa: { available: 5000, price: usd(10) }, santander_br: { available: 5000, price: usd(10) },
-    inter: { available: 5000, price: usd(10) }, c6bank: { available: 5000, price: usd(10) }, picpay: { available: 5000, price: usd(10) },
-    pagbank: { available: 5000, price: usd(10) }, mercadopago: { available: 5000, price: usd(10) },
-    netflix: { available: 8000, variants: { random: { price: usd(20) }, chooseDdi: { price: usd(25) }, custom: { price: usd(30) } } },
-    spotify: { available: 6000, variants: { random: { price: usd(15) }, chooseDdi: { price: usd(20) }, custom: { price: usd(25) } } },
-    uber: { available: 15000, variants: { random: { price: usd(12) }, chooseDdi: { price: usd(18) }, custom: { price: usd(25) } } },
-    ifood: { available: 10000, variants: { random: { price: usd(10) }, chooseDdi: { price: usd(15) }, custom: { price: usd(20) } } },
-    anyother: { available: 500000, variants: { random: { price: usd(8) }, chooseDdi: { price: usd(15) }, custom: { price: usd(20) } } },
+    whatsapp: padraoWhatsApp(500000),
+    telegram: precoFixo(620000),
+    facebook: precoFixo(850000),
+    instagram: precoFixo(940000),
+    
+    nubank: precoFixo(5000),
+    itau: precoFixo(5000),
+    bradesco: precoFixo(5000),
+    bancodobrasil: precoFixo(5000),
+    caixa: precoFixo(5000),
+    santander_br: precoFixo(5000),
+    inter: precoFixo(5000),
+    c6bank: precoFixo(5000),
+    picpay: precoFixo(5000),
+    pagbank: precoFixo(5000),
+    mercadopago: precoFixo(5000),
+    
+    netflix: padrao(8000),
+    spotify: padrao(6000),
+    uber: padrao(15000),
+    ifood: padrao(10000),
+
+    anyother: padrao(500000),
   },
 
-  // 🇵🇹 PORTUGAL (Preços base em EUR, convertidos para USD)
+  // 🇵🇹 PORTUGAL
   pt: {
-    whatsapp: { available: 300000, variants: { random: { price: usd(3) }, chooseDdi: { price: usd(4) }, custom: { price: usd(5) } } },
-    telegram: { available: 180000, price: usd(2) }, facebook: { available: 420000, price: usd(2) },
-    millenniumbcp: { available: 2000, price: usd(2) }, novobanco: { available: 2000, price: usd(2) }, cgd: { available: 2000, price: usd(2) }, revolut: { available: 2000, price: usd(2) },
-    netflix: { available: 3000, variants: { random: { price: usd(4) }, chooseDdi: { price: usd(5) }, custom: { price: usd(6) } } },
-    spotify: { available: 2500, variants: { random: { price: usd(3) }, chooseDdi: { price: usd(4) }, custom: { price: usd(5) } } },
-    uber: { available: 5000, variants: { random: { price: usd(3.5) }, chooseDdi: { price: usd(4.5) }, custom: { price: usd(5.5) } } },
-    anyother: { available: 300000, variants: { random: { price: usd(2) }, chooseDdi: { price: usd(4) }, custom: { price: usd(5) } } },
+    whatsapp: padraoWhatsApp(300000),
+    telegram: precoFixo(180000),
+    facebook: precoFixo(420000),
+    
+    millenniumbcp: precoFixo(2000),
+    novobanco: precoFixo(2000),
+    cgd: precoFixo(2000),
+    revolut: precoFixo(2000),
+    
+    netflix: padrao(3000),
+    spotify: padrao(2500),
+    uber: padrao(5000),
+
+    anyother: padrao(300000),
   },
 
-  // 🇿🇦 ÁFRICA DO SUL (Preços base em ZAR, convertidos para USD)
+  // 🇿🇦 ÁFRICA DO SUL
   za: {
-    whatsapp: { available: 400000, variants: { random: { price: usd(25) }, chooseDdi: { price: usd(45) }, custom: { price: usd(50) } } },
-    telegram: { available: 150000, price: usd(20) }, capitec: { available: 3000, price: usd(20) }, fnb: { available: 3000, price: usd(20) }, nedbank: { available: 3000, price: usd(20) },
-    anyother: { available: 200000, variants: { random: { price: usd(15) }, chooseDdi: { price: usd(45) }, custom: { price: usd(50) } } },
+    whatsapp: padraoWhatsApp(400000),
+    telegram: precoFixo(150000),
+    capitec: precoFixo(3000),
+    fnb: precoFixo(3000),
+    nedbank: precoFixo(3000),
+    anyother: padrao(200000),
   },
 
-  // 🇺🇸 ESTADOS UNIDOS (Já estão em USD, não precisa de converter)
+  // 🇺🇸 ESTADOS UNIDOS
   us: {
-    whatsapp: { available: 400000, variants: { random: { price: 3 }, chooseDdi: { price: 5 }, custom: { price: 6 } } },
-    telegram: { available: 250000, price: 2.5 }, chase: { available: 5000, price: 2.5 }, bankofamerica: { available: 5000, price: 2.5 }, wellsfargo: { available: 5000, price: 2.5 }, citi: { available: 5000, price: 2.5 },
-    anyother: { available: 400000, variants: { random: { price: 2.5 }, chooseDdi: { price: 5 }, custom: { price: 6 } } },
+    whatsapp: padraoWhatsApp(400000),
+    telegram: precoFixo(250000),
+    chase: precoFixo(5000),
+    bankofamerica: precoFixo(5000),
+    wellsfargo: precoFixo(5000),
+    citi: precoFixo(5000),
+    anyother: padrao(400000),
   },
 
-  // 🇮🇳 ÍNDIA (Preços base em INR, convertidos para USD)
+  // 🇮🇳 ÍNDIA
   in: {
-    whatsapp: { available: 900000, variants: { random: { price: usd(12) }, chooseDdi: { price: usd(30) }, custom: { price: usd(35) } } },
-    telegram: { available: 500000, price: usd(10) }, hdfc: { available: 5000, price: usd(10) }, icici: { available: 5000, price: usd(10) }, sbi: { available: 5000, price: usd(10) },
-    anyother: { available: 500000, variants: { random: { price: usd(10) }, chooseDdi: { price: usd(30) }, custom: { price: usd(35) } } },
+    whatsapp: padraoWhatsApp(900000),
+    telegram: precoFixo(500000),
+    hdfc: precoFixo(5000),
+    icici: precoFixo(5000),
+    sbi: precoFixo(5000),
+    anyother: padrao(500000),
   },
-};
-
-const DEFAULT_PRICE_MZN: Record<string, number> = {
-  social: 150, bank: 180, finance: 160, shopping: 70, games: 80,
-  transport: 65, delivery: 70, travel: 120, technology: 100, entertainment: 100, dating: 100, other: 100,
 };
 
 export function getPrice(serviceId: string, countryId: string, variant: 'random' | 'chooseDdi' | 'custom' = 'random') {
   const entry = pricesByCountry[countryId]?.[serviceId];
   
+  // 1. Retorna o preço específico definido acima
   if (entry) {
     if (entry.variants) {
       const v = entry.variants[variant];
@@ -113,20 +159,24 @@ export function getPrice(serviceId: string, countryId: string, variant: 'random'
     }
   }
 
+  // 2. Fallback de segurança caso um serviço não esteja listado no país
   const service = services.find((s) => s.id === serviceId);
   const country = countries.find((c) => c.id === countryId);
   if (!service || !country) return null;
+
   if (service.category === 'bank') return null; 
 
-  const rates: Record<string, number> = { MZN: 1, BRL: 0.086, EUR: 0.014, USD: 0.015, ZAR: 0.28, INR: 1.3 };
-  const taxa = rates[country.currency] || 1; 
   const stockAleatorio = Math.floor(Math.random() * (900000 - 50000 + 1)) + 50000;
 
+  // Se for personalizado (VIP), usa a regra dos 5.51 USD
   if (variant === 'custom') {
-    const baseCustomMZN = serviceId === 'whatsapp' ? 350 : 300;
-    return { available: stockAleatorio, price: usd(baseCustomMZN * taxa), isDefault: true };
+    return { available: stockAleatorio, price: PRECO_VIP, isDefault: true };
   }
 
-  const baseMZN = DEFAULT_PRICE_MZN[service.category] || 100;
-  return { available: stockAleatorio, price: usd(baseMZN * taxa), isDefault: true };
+  // Se for um serviço novo, verifica se é whatsapp, senão usa a regra dos 2.50 USD
+  if (serviceId === 'whatsapp') {
+    return { available: stockAleatorio, price: PRECO_WHATSAPP, isDefault: true };
+  }
+
+  return { available: stockAleatorio, price: PRECO_RESTANTE, isDefault: true };
 }
