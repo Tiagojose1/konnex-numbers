@@ -70,10 +70,11 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            {/* 🆕 Sino de notificação agora é um link funcional */}
-            <Link href="/em-breve?feature=Notificações" className="text-white relative hover:text-cyan-400 transition-colors">
+          {/* 🆕 Sino ligado à página real de notificações */}
+            <Link href="/notificacoes" className="text-white relative hover:text-cyan-400 transition-colors">
               <span className="text-lg">🔔</span>
+              {/* Ponto vermelho de notificação (podes usar estado real depois) */}
+              <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
             </Link>
             
             {/* 🆕 O botão do presente (🎁) foi removido daqui */}
@@ -104,11 +105,11 @@ export default function DashboardPage() {
         
         {/* ===== SERVIÇOS DO FUTURO / RECOMPENSAS ===== */}
         <div className="flex overflow-x-auto gap-4 pb-4 scrollbar-hide -mx-4 px-4 mb-2 justify-between">
-          {[
-            { icon: '🌍', label: 'Chamadas e SIM', link: '/em-breve' },
-            { icon: '🪙', label: 'Recompensas', link: '/em-breve' },
+            {[
+            { icon: '🌍', label: 'e-SIM Chamadas', link: '/em-breve' },
+            { icon: '🪙', label: 'Recompensas', link: '/recompensas' }, // 🆕 Link real
             { icon: '💎', label: 'Bónus VIP', link: '/saldo' },
-            { icon: '🤝', label: 'Convide Amigos', link: '/em-breve' },
+            { icon: '🤝', label: 'Convide Amigos', link: '/convide-amigos' }, // 🆕 Link real
             { icon: '🎥', label: 'Tutoriais', link: '/em-breve' },
           ].map((item, i) => (
             <Link href={item.link} key={i} className="flex flex-col items-center min-w-[60px] gap-1.5">
