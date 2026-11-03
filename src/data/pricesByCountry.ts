@@ -13,21 +13,12 @@ export interface PriceEntry {
   };
 }
 
-// 🆕 Definição Única de Preços em USD (Dólares)
+// 🆕 REGRA GLOBAL DE PREÇOS (Sempre em USD)
 const PRECO_WHATSAPP = 3.20;
 const PRECO_RESTANTE = 2.50;
 const PRECO_VIP = 5.51;
 
-// Função auxiliar para criar a estrutura de forma mais limpa
-const padrao = (disponivel: number) => ({
-  available: disponivel,
-  variants: { 
-    random: { price: PRECO_RESTANTE }, 
-    chooseDdi: { price: PRECO_RESTANTE }, 
-    custom: { price: PRECO_VIP } 
-  }
-});
-
+// Criamos os moldes de preço para reutilizar
 const padraoWhatsApp = (disponivel: number) => ({
   available: disponivel,
   variants: { 
@@ -37,117 +28,80 @@ const padraoWhatsApp = (disponivel: number) => ({
   }
 });
 
-const precoFixo = (disponivel: number) => ({
+const padraoGeral = (disponivel: number) => ({
+  available: disponivel,
+  variants: { 
+    random: { price: PRECO_RESTANTE }, 
+    chooseDdi: { price: PRECO_RESTANTE }, 
+    custom: { price: PRECO_VIP } 
+  }
+});
+
+const precoFixoGeral = (disponivel: number) => ({
   available: disponivel,
   price: PRECO_RESTANTE
 });
 
+// Definimos apenas os países principais manualmente para manter o catálogo organizado
 export const pricesByCountry: Record<string, Record<string, PriceEntry>> = {
   // 🇲🇿 MOÇAMBIQUE
   mz: {
     whatsapp: padraoWhatsApp(838547),
-    telegram: precoFixo(1482653),
-    facebook: precoFixo(102448),
-    instagram: precoFixo(1324981),
-    
-    bci: precoFixo(1000),
-    bim: precoFixo(1000),
-    millenniumbim: precoFixo(1000),
-    standardbank_mz: precoFixo(1000),
-    absa_mz: precoFixo(1000),
-    bancounico: precoFixo(1000),
-    moza: precoFixo(1000),
-    
-    netflix: padrao(5000),
-    spotify: padrao(3000),
-    uber: padrao(10000),
-    epicgames: padrao(2000),
-    disney: padrao(1500),
-    
-    anyother: padrao(73936),
+    telegram: precoFixoGeral(1482653),
+    facebook: precoFixoGeral(102448),
+    instagram: precoFixoGeral(1324981),
+    bci: precoFixoGeral(1000), bim: precoFixoGeral(1000), millenniumbim: precoFixoGeral(1000),
+    standardbank_mz: precoFixoGeral(1000), absa_mz: precoFixoGeral(1000), bancounico: precoFixoGeral(1000), moza: precoFixoGeral(1000),
+    netflix: padraoGeral(5000), spotify: padraoGeral(3000), uber: padraoGeral(10000), epicgames: padraoGeral(2000), disney: padraoGeral(1500),
+    anyother: padraoGeral(73936),
   },
 
   // 🇧🇷 BRASIL
   br: {
     whatsapp: padraoWhatsApp(500000),
-    telegram: precoFixo(620000),
-    facebook: precoFixo(850000),
-    instagram: precoFixo(940000),
-    
-    nubank: precoFixo(5000),
-    itau: precoFixo(5000),
-    bradesco: precoFixo(5000),
-    bancodobrasil: precoFixo(5000),
-    caixa: precoFixo(5000),
-    santander_br: precoFixo(5000),
-    inter: precoFixo(5000),
-    c6bank: precoFixo(5000),
-    picpay: precoFixo(5000),
-    pagbank: precoFixo(5000),
-    mercadopago: precoFixo(5000),
-    
-    netflix: padrao(8000),
-    spotify: padrao(6000),
-    uber: padrao(15000),
-    ifood: padrao(10000),
-
-    anyother: padrao(500000),
+    telegram: precoFixoGeral(620000), facebook: precoFixoGeral(850000), instagram: precoFixoGeral(940000),
+    nubank: precoFixoGeral(5000), itau: precoFixoGeral(5000), bradesco: precoFixoGeral(5000), bancodobrasil: precoFixoGeral(5000),
+    caixa: precoFixoGeral(5000), santander_br: precoFixoGeral(5000), inter: precoFixoGeral(5000), c6bank: precoFixoGeral(5000),
+    picpay: precoFixoGeral(5000), pagbank: precoFixoGeral(5000), mercadopago: precoFixoGeral(5000),
+    netflix: padraoGeral(8000), spotify: padraoGeral(6000), uber: padraoGeral(15000), ifood: padraoGeral(10000),
+    anyother: padraoGeral(500000),
   },
 
   // 🇵🇹 PORTUGAL
   pt: {
     whatsapp: padraoWhatsApp(300000),
-    telegram: precoFixo(180000),
-    facebook: precoFixo(420000),
-    
-    millenniumbcp: precoFixo(2000),
-    novobanco: precoFixo(2000),
-    cgd: precoFixo(2000),
-    revolut: precoFixo(2000),
-    
-    netflix: padrao(3000),
-    spotify: padrao(2500),
-    uber: padrao(5000),
-
-    anyother: padrao(300000),
+    telegram: precoFixoGeral(180000), facebook: precoFixoGeral(420000),
+    millenniumbcp: precoFixoGeral(2000), novobanco: precoFixoGeral(2000), cgd: precoFixoGeral(2000), revolut: precoFixoGeral(2000),
+    netflix: padraoGeral(3000), spotify: padraoGeral(2500), uber: padraoGeral(5000),
+    anyother: padraoGeral(300000),
   },
 
   // 🇿🇦 ÁFRICA DO SUL
   za: {
-    whatsapp: padraoWhatsApp(400000),
-    telegram: precoFixo(150000),
-    capitec: precoFixo(3000),
-    fnb: precoFixo(3000),
-    nedbank: precoFixo(3000),
-    anyother: padrao(200000),
+    whatsapp: padraoWhatsApp(400000), telegram: precoFixoGeral(150000),
+    capitec: precoFixoGeral(3000), fnb: precoFixoGeral(3000), nedbank: precoFixoGeral(3000),
+    anyother: padraoGeral(200000),
   },
 
   // 🇺🇸 ESTADOS UNIDOS
   us: {
-    whatsapp: padraoWhatsApp(400000),
-    telegram: precoFixo(250000),
-    chase: precoFixo(5000),
-    bankofamerica: precoFixo(5000),
-    wellsfargo: precoFixo(5000),
-    citi: precoFixo(5000),
-    anyother: padrao(400000),
+    whatsapp: padraoWhatsApp(400000), telegram: precoFixoGeral(250000),
+    chase: precoFixoGeral(5000), bankofamerica: precoFixoGeral(5000), wellsfargo: precoFixoGeral(5000), citi: precoFixoGeral(5000),
+    anyother: padraoGeral(400000),
   },
 
   // 🇮🇳 ÍNDIA
   in: {
-    whatsapp: padraoWhatsApp(900000),
-    telegram: precoFixo(500000),
-    hdfc: precoFixo(5000),
-    icici: precoFixo(5000),
-    sbi: precoFixo(5000),
-    anyother: padrao(500000),
+    whatsapp: padraoWhatsApp(900000), telegram: precoFixoGeral(500000),
+    hdfc: precoFixoGeral(5000), icici: precoFixoGeral(5000), sbi: precoFixoGeral(5000),
+    anyother: padraoGeral(500000),
   },
 };
 
 export function getPrice(serviceId: string, countryId: string, variant: 'random' | 'chooseDdi' | 'custom' = 'random') {
   const entry = pricesByCountry[countryId]?.[serviceId];
   
-  // 1. Retorna o preço específico definido acima
+  // 1. Tenta encontrar o preço específico que definimos acima
   if (entry) {
     if (entry.variants) {
       const v = entry.variants[variant];
@@ -159,24 +113,26 @@ export function getPrice(serviceId: string, countryId: string, variant: 'random'
     }
   }
 
-  // 2. Fallback de segurança caso um serviço não esteja listado no país
+  // 2. Fallback Automático para QUALQUER OUTRO PAÍS DO MUNDO
   const service = services.find((s) => s.id === serviceId);
   const country = countries.find((c) => c.id === countryId);
   if (!service || !country) return null;
 
+  // Bancos só aparecem se estiverem listados naquele país manualmente acima
   if (service.category === 'bank') return null; 
 
   const stockAleatorio = Math.floor(Math.random() * (900000 - 50000 + 1)) + 50000;
 
-  // Se for personalizado (VIP), usa a regra dos 5.51 USD
+  // Se for personalizado (VIP)
   if (variant === 'custom') {
     return { available: stockAleatorio, price: PRECO_VIP, isDefault: true };
   }
 
-  // Se for um serviço novo, verifica se é whatsapp, senão usa a regra dos 2.50 USD
+  // Se for WhatsApp
   if (serviceId === 'whatsapp') {
     return { available: stockAleatorio, price: PRECO_WHATSAPP, isDefault: true };
   }
 
+  // Todos os outros serviços caem na regra dos 2.50 USD
   return { available: stockAleatorio, price: PRECO_RESTANTE, isDefault: true };
 }
