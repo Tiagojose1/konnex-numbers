@@ -59,7 +59,6 @@ export default function DashboardPage() {
       <header className="bg-[#0f172a] sticky top-0 z-50 px-4 py-3 shadow-lg">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            {/* 🆕 Imagem corrigida para /incon.png */}
             <img src="/incon.png" alt="Konnex" className="h-10 w-10 object-contain" />
             <div className="flex flex-col">
               <span className="text-sm font-extrabold tracking-tight leading-tight">
@@ -70,14 +69,12 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* 🆕 Sino ligado à página real de notificações */}
+          {/* 🆕 CABEÇALHO CORRIGIDO */}
+          <div className="flex items-center gap-3">
             <Link href="/notificacoes" className="text-white relative hover:text-cyan-400 transition-colors">
               <span className="text-lg">🔔</span>
-              {/* Ponto vermelho de notificação (podes usar estado real depois) */}
               <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
             </Link>
-            
-            {/* 🆕 O botão do presente (🎁) foi removido daqui */}
             
             <Link href="/saldo" className="bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold py-1.5 px-3 rounded-md text-[10px] transition-colors">
               DEPOSITAR
@@ -105,11 +102,11 @@ export default function DashboardPage() {
         
         {/* ===== SERVIÇOS DO FUTURO / RECOMPENSAS ===== */}
         <div className="flex overflow-x-auto gap-4 pb-4 scrollbar-hide -mx-4 px-4 mb-2 justify-between">
-            {[
+          {[
             { icon: '🌍', label: 'e-SIM Chamadas', link: '/em-breve' },
-            { icon: '🪙', label: 'Recompensas', link: '/recompensas' }, // 🆕 Link real
+            { icon: '🪙', label: 'Recompensas', link: '/recompensas' }, 
             { icon: '💎', label: 'Bónus VIP', link: '/saldo' },
-            { icon: '🤝', label: 'Convide Amigos', link: '/convide-amigos' }, // 🆕 Link real
+            { icon: '🤝', label: 'Convide Amigos', link: '/convide-amigos' }, 
             { icon: '🎥', label: 'Tutoriais', link: '/em-breve' },
           ].map((item, i) => (
             <Link href={item.link} key={i} className="flex flex-col items-center min-w-[60px] gap-1.5">
@@ -147,10 +144,10 @@ export default function DashboardPage() {
         <h3 className="text-xs font-extrabold text-slate-400 mb-2 uppercase tracking-wider mt-5">Serviços Populares</h3>
         <div className="grid grid-cols-2 gap-2 mb-8">
           {[
-            { nome: 'WhatsApp', preco: 3.85, icone: '💬', cor: 'text-green-500' },
-            { nome: 'Insta connect', preco: 0.77, icone: '📷', cor: 'text-pink-500' },
-            { nome: 'Telegram', preco: 1.93, icone: '✈️', cor: 'text-blue-400' },
-            { nome: 'Facebook', preco: 0.39, icone: '📘', cor: 'text-blue-600' },
+            { nome: 'WhatsApp', preco: 3.20, icone: '💬', cor: 'text-green-500' },
+            { nome: 'Insta connect', preco: 2.50, icone: '📷', cor: 'text-pink-500' },
+            { nome: 'Telegram', preco: 2.50, icone: '✈️', cor: 'text-blue-400' },
+            { nome: 'Facebook', preco: 2.50, icone: '📘', cor: 'text-blue-600' },
           ].map((servico) => (
             <Link href="/servicos" key={servico.nome} className="bg-slate-800 p-3 rounded-xl shadow-sm border border-slate-700 flex items-center justify-between hover:border-blue-500 transition-colors">
               <div className="flex items-center gap-2">
