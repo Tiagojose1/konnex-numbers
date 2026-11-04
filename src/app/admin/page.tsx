@@ -65,17 +65,18 @@ export default function AdminPage() {
     setLoading(false);
   };
 
-  useEffect(() => {
-    carregarStats(); // 🆕 Chamar stats ao abrir
-    carregarTickets();
+    useEffect(() => {
+    // 🆕 Função interna para evitar o erro do React Hooks
+    const inicializar = async () => {
+      await carregarStats();
+      await carregarTickets();
+    };
+
+    inicializar();
+
     const canalTickets = supabase.channel('admin-tickets').on('postgres_changes', { event: '*', schema: 'public', table: 'support_tickets' }, () => carregarTickets()).subscribe();
     return () => { supabase.removeChannel(canalTickets); };
   }, []);
-
-  const abrirTicket = async (ticket: Ticket) => {
-    setTicketSelecionado(ticket);
-    setChatAberto(true);
-    setHistorico([]);
 
     const { data } = await supabase.from('support_messages').select('*').eq('ticket_id', ticket.id).order('created_at', { ascending: true });
     if (data) setHistorico(data);
