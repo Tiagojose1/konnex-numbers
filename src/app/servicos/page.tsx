@@ -7,10 +7,10 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner'; 
 import { supabase } from '@/lib/supabase';
-import { formatarMoeda, CURRENCY_SYMBOLS } from '@/lib/currencies'; // 🆕 Importa os símbolos
 import { countries, getCountry, Country } from '@/data/countries';
 import { services, Service } from '@/data/services';
 import { getPrice } from '@/data/pricesByCountry';
+import { formatarMoeda } from '@/lib/currencies';
 
 export default function ServicosPage() {
   const router = useRouter();
@@ -22,6 +22,9 @@ export default function ServicosPage() {
   const [modalAberto, setModalAberto] = useState(false);
   const [servicoSelecionado, setServicoSelecionado] = useState<Service | null>(null);
   const [paisSelecionadoParaCompra, setPaisSelecionadoParaCompra] = useState<Country | null>(null);
+
+  // 🆕 Estado para aviso de saldo insuficiente
+  const [modalSaldoAberto, setModalSaldoAberto] = useState(false);
 
   const togglePais = (paisId: string) => {
     setPaisAberto(paisAberto === paisId ? null : paisId);
@@ -37,7 +40,6 @@ export default function ServicosPage() {
 
   const efetuarCompra = async (isCustom: boolean) => {
     if (!servicoSelecionado || !paisSelecionadoParaCompra) return;
-    setModalAberto(false);
     setAProcessar(servicoSelecionado.id);
 
     const variant = isCustom ? 'custom' : 'random';
@@ -62,10 +64,31 @@ export default function ServicosPage() {
         return;
     }
 
-    // 🆕 O preço que vem do pricesByCountry já está em USD. 
-    // Na hora da compra, o backend vai descontar este valor em USD da conta do utilizador.
-    const valorEmUSD = precoInfo.price || 0;
+    // 🆕 VALIDAÇÃO DE SALDO
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('saldo, currency')
+      .eq('id', session.user.id)
+      .single();
 
+    if (!profile) {
+      toast.error("Erro ao carregar o perfil.");
+      setAProcessar(null);
+      return;
+    }
+
+    const saldoEmUSD = parseFloat(profile.saldo) || 0;
+    const precoEmUSD = precoInfo.price || 0;
+
+    if (saldoEmUSD < precoEmUSD) {
+      // Mostra o modal bonito de saldo insuficiente
+      setModalSaldoAberto(true);
+      setAProcessar(null);
+      return;
+    }
+
+    // Se tiver saldo, fecha o modal e processa
+    setModalAberto(false);
     const toastId = toast.loading("A processar o seu pedido...");
 
     const resposta = await fetch('/api/comprar', {
@@ -75,7 +98,7 @@ export default function ServicosPage() {
         userId: session.user.id,
         servico: servicoSelecionado.name,
         pais: paisSelecionadoParaCompra.name,
-        preco: valorEmUSD, // 🆕 Envia em USD
+        preco: precoEmUSD,
         isCustom: isCustom 
       }),
     });
@@ -167,10 +190,7 @@ export default function ServicosPage() {
                                   </div>
                                 </div>
                                 <div className="text-right flex items-center gap-4">
-                                  {/* 🆕 FORÇA A EXIBIÇÃO EM USD AQUI */}
-                                  <span className="text-yellow-400 font-bold whitespace-nowrap">
-                                    $ {precoInfo.price?.toFixed(2)}
-                                  </span>
+                                  <span className="text-yellow-400 font-bold whitespace-nowrap">$ {precoInfo.price?.toFixed(2)}</span>
                                   <button onClick={() => abrirModalCompra(servico, pais.id)} disabled={aProcessar === servico.id} className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-2 px-4 rounded transition-colors disabled:opacity-50">
                                     {aProcessar === servico.id ? '...' : 'OBTER'}
                                   </button>
@@ -199,10 +219,7 @@ export default function ServicosPage() {
                                   </div>
                                 </div>
                                 <div className="text-right flex items-center gap-4">
-                                  {/* 🆕 FORÇA A EXIBIÇÃO EM USD AQUI */}
-                                  <span className="text-yellow-400 font-bold whitespace-nowrap">
-                                    $ {precoInfo.price?.toFixed(2)}
-                                  </span>
+                                  <span className="text-yellow-400 font-bold whitespace-nowrap">$ {precoInfo.price?.toFixed(2)}</span>
                                   <button onClick={() => abrirModalCompra(servico, pais.id)} disabled={aProcessar === servico.id} className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-2 px-4 rounded transition-colors disabled:opacity-50">
                                     {aProcessar === servico.id ? '...' : 'OBTER'}
                                   </button>
@@ -213,9 +230,6 @@ export default function ServicosPage() {
                         </>
                       )}
 
-                      {servicosLocais.length === 0 && servicosGlobais.length === 0 && (
-                        <div className="p-4 text-center text-slate-500 text-sm">Nenhum serviço disponível.</div>
-                      )}
                     </div>
                   )}
                 </div>
@@ -229,6 +243,7 @@ export default function ServicosPage() {
         </div>
       </div>
 
+      {/* MODAL DE ESCOLHA DO TIPO DE NÚMERO */}
       {modalAberto && servicoSelecionado && paisSelecionadoParaCompra && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[100]">
           <div className="bg-slate-800 w-full max-w-sm rounded-2xl p-6 border border-slate-700 shadow-2xl">
@@ -241,10 +256,7 @@ export default function ServicosPage() {
                   <span className="block font-bold">Número Normal</span>
                   <span className="text-xs text-slate-400">Gerado pelo sistema</span>
                 </div>
-                <span className="text-yellow-400 font-bold">
-                  {/* 🆕 FORÇA A EXIBIÇÃO EM USD NO MODAL */}
-                  $ {getPrice(servicoSelecionado.id, paisSelecionadoParaCompra.id, 'random')?.price?.toFixed(2)}
-                </span>
+                <span className="text-yellow-400 font-bold">$ {getPrice(servicoSelecionado.id, paisSelecionadoParaCompra.id, 'random')?.price?.toFixed(2)}</span>
               </button>
 
               <button onClick={() => efetuarCompra(true)} className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white p-4 rounded-xl flex justify-between items-center transition-colors shadow-lg border border-purple-500">
@@ -252,14 +264,36 @@ export default function ServicosPage() {
                   <span className="block font-bold">Número VIP</span>
                   <span className="text-xs text-purple-200">Escolha os dígitos finais</span>
                 </div>
-                <span className="text-yellow-300 font-bold">
-                  {/* 🆕 FORÇA A EXIBIÇÃO EM USD NO MODAL */}
-                  $ {getPrice(servicoSelecionado.id, paisSelecionadoParaCompra.id, 'custom')?.price?.toFixed(2)}
-                </span>
+                <span className="text-yellow-300 font-bold">$ {getPrice(servicoSelecionado.id, paisSelecionadoParaCompra.id, 'custom')?.price?.toFixed(2)}</span>
               </button>
             </div>
 
             <button onClick={() => setModalAberto(false)} className="w-full text-center text-slate-400 mt-6 text-sm hover:text-white">Cancelar</button>
+          </div>
+        </div>
+      )}
+
+      {/* 🆕 MODAL BONITO DE SALDO INSUFICIENTE */}
+      {modalSaldoAberto && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[100]">
+          <div className="bg-slate-800 w-full max-w-sm rounded-2xl p-6 border border-red-500/30 shadow-2xl text-center">
+            <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="text-4xl">💳</span>
+            </div>
+            <h3 className="text-xl font-bold text-white mb-2">Saldo Insuficiente</h3>
+            <p className="text-slate-400 text-sm mb-6">
+              Não tem saldo suficiente para comprar este número. Por favor, adicione saldo à sua conta para continuar.
+            </p>
+            
+            <Link 
+              href="/saldo" 
+              className="block w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-xl transition-colors mb-3"
+            >
+              Depositar Agora
+            </Link>
+            <button onClick={() => setModalSaldoAberto(false)} className="w-full text-slate-400 text-sm hover:text-white">
+              Cancelar
+            </button>
           </div>
         </div>
       )}
