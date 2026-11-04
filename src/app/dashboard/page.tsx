@@ -69,8 +69,8 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* 🆕 CABEÇALHO CORRIGIDO */}
           <div className="flex items-center gap-3">
+            {/* Sino ligado à página real de notificações */}
             <Link href="/notificacoes" className="text-white relative hover:text-cyan-400 transition-colors">
               <span className="text-lg">🔔</span>
               <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
@@ -104,10 +104,10 @@ export default function DashboardPage() {
         <div className="flex overflow-x-auto gap-4 pb-4 scrollbar-hide -mx-4 px-4 mb-2 justify-between">
           {[
             { icon: '🌍', label: 'e-SIM Chamadas', link: '/em-breve' },
-            { icon: '🪙', label: 'Recompensas', link: '/recompensas' }, 
+            { icon: '🪙', label: 'Recompensas', link: '/recompensas' }, // 🆕 Link real
             { icon: '💎', label: 'Bónus VIP', link: '/saldo' },
-            { icon: '🤝', label: 'Convide Amigos', link: '/convide-amigos' }, 
-            { icon: '🎥', label: 'Tutoriais', link: '/em-breve' },
+            { icon: '🤝', label: 'Convide Amigos', link: '/convide-amigos' }, // 🆕 Link real
+            { icon: '🎥', label: 'Tutoriais', link: '/tutorial' }, // 🆕 Link real
           ].map((item, i) => (
             <Link href={item.link} key={i} className="flex flex-col items-center min-w-[60px] gap-1.5">
               <div className="w-11 h-11 bg-slate-800 rounded-full shadow-sm border border-slate-700 flex items-center justify-center text-xl hover:bg-slate-700 transition-colors">

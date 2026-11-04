@@ -21,7 +21,6 @@ export default function AdicionarSaldoPage() {
   const [telefone, setTelefone] = useState('');
   const [referenciaGerada, setReferenciaGerada] = useState('');
   
-  // 🆕 Estados para o Cartão de Crédito
   const [numeroCartao, setNumeroCartao] = useState('');
   const [bandeiraCartao, setBandeiraCartao] = useState<string | null>(null);
 
@@ -34,11 +33,7 @@ export default function AdicionarSaldoPage() {
         router.push('/login');
         return;
       }
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('saldo, currency')
-        .eq('id', session.user.id)
-        .single();
+      const { data: profile } = await supabase.from('profiles').select('saldo, currency').eq('id', session.user.id).single();
       if (profile) {
         setSaldoAtual(parseFloat(profile.saldo) || 0);
         setCurrency(profile.currency || 'MZN');
@@ -47,29 +42,14 @@ export default function AdicionarSaldoPage() {
     carregarSaldo();
   }, [router]);
 
-  // 🆕 Função que deteta a bandeira/banco pelo número do cartão
   const handleCartaoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let valor = e.target.value.replace(/\D/g, ''); // Remove tudo o que não for número
-    if (valor.length > 16) valor = valor.slice(0, 16); // Limita a 16 dígitos
-    
-    // Formata com espaços (ex: 1234 5678 9012 3456)
-    const formatado = valor.replace(/(\d{4})(?=\d)/g, '$1 ');
-    setNumeroCartao(formatado);
-
-    // 🕵️ Lógica de deteção (BIN)
-    if (valor.startsWith('4')) {
-      setBandeiraCartao('Visa');
-    } else if (valor.startsWith('5') || valor.startsWith('2')) {
-      setBandeiraCartao('Mastercard');
-    } else if (valor.startsWith('34') || valor.startsWith('37')) {
-      setBandeiraCartao('American Express');
-    } else if (valor.startsWith('6')) {
-      setBandeiraCartao('Discover');
-    } else if (valor.startsWith('50') || valor.startsWith('88')) {
-      setBandeiraCartao('BCI / BIM (Moçambique)');
-    } else {
-      setBandeiraCartao(null);
-    }
+    let valor = e.target.value.replace(/\D/g, '').slice(0, 16);
+    setNumeroCartao(valor.replace(/(\d{4})(?=\d)/g, '$1 '));
+    if (valor.startsWith('4')) setBandeiraCartao('Visa');
+    else if (valor.startsWith('5') || valor.startsWith('2')) setBandeiraCartao('Mastercard');
+    else if (valor.startsWith('34') || valor.startsWith('37')) setBandeiraCartao('American Express');
+    else if (valor.startsWith('6')) setBandeiraCartao('Discover');
+    else setBandeiraCartao(null);
   };
 
   const handlePagamento = async () => {
@@ -100,7 +80,7 @@ export default function AdicionarSaldoPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           userId: session.user.id, 
-          valor: valorUSD,
+          valor: valorUSD, // O backend recebe o valor em USD
           metodo: metodo,
           telefone: telefone
         }),
@@ -124,7 +104,6 @@ export default function AdicionarSaldoPage() {
     setAProcessar(false);
   };
 
-  // ===== TELA DE CONFIRMAÇÃO =====
   if (depositoConfirmado !== null) {
     const simbolo = CURRENCY_SYMBOLS[currency] || currency;
     return (
@@ -142,10 +121,7 @@ export default function AdicionarSaldoPage() {
           <p className="text-4xl font-extrabold text-white mb-12">
             {depositoConfirmado.toLocaleString('pt-PT')} {simbolo}
           </p>
-          <button
-            onClick={() => { setDepositoConfirmado(null); router.push('/dashboard'); }}
-            className="w-full max-w-sm bg-green-500 hover:bg-green-600 text-white font-bold py-4 rounded-xl text-lg transition-colors shadow-lg"
-          >
+          <button onClick={() => { setDepositoConfirmado(null); router.push('/dashboard'); }} className="w-full max-w-sm bg-green-500 hover:bg-green-600 text-white font-bold py-4 rounded-xl text-lg transition-colors shadow-lg">
             Continuar
           </button>
         </div>
@@ -153,14 +129,13 @@ export default function AdicionarSaldoPage() {
     );
   }
 
-  // ===== FORMULÁRIO NORMAL =====
   const simbolo = CURRENCY_SYMBOLS[currency] || currency;
   const taxa = RATES[currency] || 1;
 
   const metodosPagamento = [
     { id: 'M-Pesa', icone: '/m-pesa.png' },
     { id: 'e-Mola', icone: '/e-mola.png' },
-    { id: 'Cartão de Crédito', icone: '/cartao-de-credito.webp' }, // 🆕 Imagem que adicionaste
+    { id: 'Cartão de Crédito', icone: '/cartao-de-credito.webp' },
     { id: 'Transferência', icone: 'https://cdn-icons-png.flaticon.com/512/2830/2830284.png' }
   ];
 
@@ -172,13 +147,12 @@ export default function AdicionarSaldoPage() {
       </div>
 
       <div className="bg-gradient-to-r from-purple-600 to-blue-500 rounded-xl p-3 text-white shadow-md mb-4">
-        <p className="text-purple-100 text-[10px] uppercase font-bold tracking-wider">Saldo Atual</p>
+        <p className="text-purple-100 text-[10px] uppercase font-bold tracking-wider">Saldo Disponível</p>
         <h2 className="text-2xl font-bold">{formatarMoeda(saldoAtual, currency)}</h2>
       </div>
 
       <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
         
-        {/* VALORES EM USD */}
         <label className="block text-xs font-bold text-gray-700 mb-2 uppercase tracking-wide">Escolha o valor (USD)</label>
         <div className="grid grid-cols-3 gap-2 mb-5">
           {valoresPadraoUSD.map((v) => (
@@ -197,7 +171,6 @@ export default function AdicionarSaldoPage() {
           ))}
         </div>
 
-        {/* MÉTODOS DE PAGAMENTO */}
         <label className="block text-xs font-bold text-gray-700 mb-2 uppercase tracking-wide">Método de Pagamento</label>
         <div className="grid grid-cols-2 gap-2 mb-5">
           {metodosPagamento.map((m) => (
@@ -218,7 +191,6 @@ export default function AdicionarSaldoPage() {
           ))}
         </div>
 
-        {/* INPUTS DINÂMICOS */}
         {(metodo === 'M-Pesa' || metodo === 'e-Mola') && (
           <div className="mb-4">
             <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wide">Número de Telefone</label>
@@ -226,35 +198,16 @@ export default function AdicionarSaldoPage() {
           </div>
         )}
 
-        {/* 🆕 INPUT DE CARTÃO COM DETEÇÃO AUTOMÁTICA */}
         {metodo === 'Cartão de Crédito' && (
           <div className="mb-4 space-y-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
             <div className="flex justify-between items-center mb-2">
               <p className="text-[10px] text-gray-500 font-bold">🔒 Ambiente seguro.</p>
-              {bandeiraCartao && (
-                <span className="text-[10px] font-bold text-purple-600 bg-purple-100 px-2 py-0.5 rounded-full">
-                  {bandeiraCartao}
-                </span>
-              )}
+              {bandeiraCartao && <span className="text-[10px] font-bold text-purple-600 bg-purple-100 px-2 py-0.5 rounded-full">{bandeiraCartao}</span>}
             </div>
-            
             <div className="relative">
-              <input 
-                type="text" 
-                placeholder="0000 0000 0000 0000" 
-                value={numeroCartao}
-                onChange={handleCartaoChange}
-                maxLength={19}
-                className="w-full p-2.5 border border-gray-300 rounded-lg text-sm pr-10" 
-              />
-              {/* 🆕 Ícone que aparece dentro do input quando deteta a bandeira */}
-              {bandeiraCartao && (
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">
-                   {bandeiraCartao === 'Visa' ? 'VISA' : bandeiraCartao === 'Mastercard' ? 'MC' : '✓'}
-                </div>
-              )}
+              <input type="text" placeholder="0000 0000 0000 0000" value={numeroCartao} onChange={handleCartaoChange} maxLength={19} className="w-full p-2.5 border border-gray-300 rounded-lg text-sm pr-10" />
+              {bandeiraCartao && <div className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">{bandeiraCartao === 'Visa' ? 'VISA' : bandeiraCartao === 'Mastercard' ? 'MC' : '✓'}</div>}
             </div>
-
             <div className="grid grid-cols-2 gap-2">
               <input type="text" placeholder="MM/AA" className="w-full p-2.5 border border-gray-300 rounded-lg text-sm" />
               <input type="text" placeholder="CVV" className="w-full p-2.5 border border-gray-300 rounded-lg text-sm" />

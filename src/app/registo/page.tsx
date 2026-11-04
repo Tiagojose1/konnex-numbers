@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { countries, Country } from '@/data/countries';
+import { converterParaUSD } from '@/lib/currencies'; // 🆕 Importação necessária para a conversão
 
 export default function RegistoPage() {
   const router = useRouter();
@@ -55,6 +56,14 @@ export default function RegistoPage() {
     const toastId = toast.loading('A criar a sua conta...');
 
     const moedaEscolhida = paisSelecionado.currency;
+    
+    // 🆕 Lê o código de convite do URL (se existir)
+    const urlParams = new URLSearchParams(window.location.search);
+    const referralCode = urlParams.get('ref');
+
+    // 🆕 Calcula o saldo inicial: O utilizador ganha 10 unidades da moeda local (ex: 10 MT).
+    // Convertemos esses 10 MT para USD para guardar na base de dados.
+    const saldoInicialUSD = converterParaUSD(10, moedaEscolhida);
 
     const { data, error } = await supabase.auth.signUp({
       email, 
@@ -66,7 +75,9 @@ export default function RegistoPage() {
           currency: moedaEscolhida,
           data_nascimento: dataNascimento,
           pais_residencia: paisSelecionado.name,
-          genero: genero
+          genero: genero,
+          saldo: saldoInicialUSD, // 🆕 Saldo inicial convertido
+          referred_by: referralCode || null // 🆕 Guarda quem convidou
         } 
       }
     });
@@ -93,7 +104,7 @@ export default function RegistoPage() {
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 font-sans py-10">
       <div className="max-w-md w-full bg-slate-900 p-8 rounded-2xl shadow-2xl border border-slate-800">
         
-        {/* 🆕 CABEÇALHO IGUAL AO DA PÁGINA DE LOGIN */}
+        {/* CABEÇALHO */}
         <div className="text-center mb-8 flex flex-col items-center">
           
           <div className="relative flex justify-center mb-4">
