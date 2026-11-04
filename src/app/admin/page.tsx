@@ -22,15 +22,36 @@ interface Mensagem {
   created_at: string;
 }
 
+interface Stats {
+  totalUsers: number;
+  saldoTotalUSD: number;
+  totalPedidos: number;
+}
+
 export default function AdminPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // 🆕 Estado para as Estatísticas
+  const [stats, setStats] = useState<Stats>({ totalUsers: 0, saldoTotalUSD: 0, totalPedidos: 0 });
+
   const [chatAberto, setChatAberto] = useState(false);
   const [ticketSelecionado, setTicketSelecionado] = useState<Ticket | null>(null);
   const [historico, setHistorico] = useState<Mensagem[]>([]);
   const [mensagem, setMensagem] = useState('');
   const [enviando, setEnviando] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // 🆕 Função para carregar as estatísticas
+  const carregarStats = async () => {
+    try {
+      const res = await fetch('/api/admin/stats');
+      const data = await res.json();
+      if (data && !data.error) setStats(data);
+    } catch (err) {
+      console.error('Erro stats:', err);
+    }
+  };
 
   const carregarTickets = async () => {
     const { data, error } = await supabase
@@ -45,6 +66,7 @@ export default function AdminPage() {
   };
 
   useEffect(() => {
+    carregarStats(); // 🆕 Chamar stats ao abrir
     carregarTickets();
     const canalTickets = supabase.channel('admin-tickets').on('postgres_changes', { event: '*', schema: 'public', table: 'support_tickets' }, () => carregarTickets()).subscribe();
     return () => { supabase.removeChannel(canalTickets); };
@@ -77,7 +99,6 @@ export default function AdminPage() {
     const textoEnviado = mensagem;
     setMensagem('');
 
-    // 🔥 Envia via API para o servidor traduzir automaticamente
     const res = await fetch('/api/apoio/admin', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -95,6 +116,25 @@ export default function AdminPage() {
     <div className="min-h-screen bg-[#0f172a] p-6 font-sans text-white pb-24">
       <div className="max-w-6xl mx-auto">
         <h1 className="text-2xl font-bold text-white mb-6">Painel de Administração</h1>
+
+        {/* 🆕 CARTÕES DE ESTATÍSTICAS */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <div className="bg-slate-800 p-5 rounded-xl border border-slate-700 shadow-sm">
+            <p className="text-slate-400 text-xs font-bold uppercase mb-1">Total Utilizadores</p>
+            <p className="text-3xl font-extrabold text-white">{stats.totalUsers}</p>
+          </div>
+          <div className="bg-slate-800 p-5 rounded-xl border border-slate-700 shadow-sm">
+            <p className="text-slate-400 text-xs font-bold uppercase mb-1">Dinheiro em Carteiras (USD)</p>
+            <p className="text-3xl font-extrabold text-green-400">$ {stats.saldoTotalUSD.toFixed(2)}</p>
+            <p className="text-[10px] text-slate-500 mt-1">≈ MT {(stats.saldoTotalUSD * 63.88).toFixed(2)}</p>
+          </div>
+          <div className="bg-slate-800 p-5 rounded-xl border border-slate-700 shadow-sm">
+            <p className="text-slate-400 text-xs font-bold uppercase mb-1">Total Pedidos</p>
+            <p className="text-3xl font-extrabold text-cyan-400">{stats.totalPedidos}</p>
+          </div>
+        </div>
+
+        {/* TABELA DE TICKETS */}
         <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden shadow-lg">
           <div className="bg-slate-900 px-6 py-4 border-b border-slate-700 flex items-center gap-2">
             <span className="text-xl">🚨</span><h2 className="text-lg font-bold text-white">Tickets de Suporte Pendentes</h2>
@@ -131,6 +171,7 @@ export default function AdminPage() {
         </div>
       </div>
 
+      {/* MODAL DO CHAT DO ADMIN (COM TRADUÇÃO) */}
       {chatAberto && ticketSelecionado && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[100]">
           <div className="bg-slate-800 w-full max-w-2xl rounded-2xl overflow-hidden flex flex-col h-[80vh] border border-slate-700">

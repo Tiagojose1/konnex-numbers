@@ -10,29 +10,28 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "Konnex Numbers | Números Virtuais",
   description: "Números virtuais para verificação de SMS.",
-  manifest: "/manifest.webmanifest", // Garante que o navegador encontra o manifesto
+  manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "default",
+    statusBarStyle: "black-translucent", // 🆕 Barra transparente (efeito App)
     title: "Konnex Numbers",
   },
   formatDetection: {
     telephone: false,
   },
   icons: {
-    // 🆕 Atualizado para o teu ficheiro com fundo azul escuro
     icon: "/incone.jpeg",
-    apple: "/incone.jpeg", // Ícone que aparece no ecrã inicial do iPhone
+    apple: "/incone.jpeg",
   },
 };
 
-// 🆕 Cores para o PWA (Barra de estado e tema)
+// 🆕 Cores do App
 export const viewport: Viewport = {
   themeColor: "#0f172a",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
-  userScalable: false, // Impede o zoom acidental em apps móveis
+  userScalable: false,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
