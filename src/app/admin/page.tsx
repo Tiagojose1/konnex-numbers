@@ -32,7 +32,7 @@ export default function AdminPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // 🆕 Estado para as Estatísticas
+  // Estado para as Estatísticas
   const [stats, setStats] = useState<Stats>({ totalUsers: 0, saldoTotalUSD: 0, totalPedidos: 0 });
 
   const [chatAberto, setChatAberto] = useState(false);
@@ -42,7 +42,7 @@ export default function AdminPage() {
   const [enviando, setEnviando] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  // 🆕 Função para carregar as estatísticas
+  // Função para carregar as estatísticas
   const carregarStats = async () => {
     try {
       const res = await fetch('/api/admin/stats');
@@ -65,8 +65,8 @@ export default function AdminPage() {
     setLoading(false);
   };
 
-    useEffect(() => {
-    // 🆕 Função interna para evitar o erro do React Hooks
+  useEffect(() => {
+    // Função interna para evitar o erro do React Hooks (set-state-in-effect)
     const inicializar = async () => {
       await carregarStats();
       await carregarTickets();
@@ -78,9 +78,18 @@ export default function AdminPage() {
     return () => { supabase.removeChannel(canalTickets); };
   }, []);
 
+  // 🆕 Função abrirTicket restaurada (O build falhava porque ela tinha desaparecido)
+  const abrirTicket = async (ticket: Ticket) => {
+    setTicketSelecionado(ticket);
+    setChatAberto(true);
+    setHistorico([]);
+
     const { data } = await supabase.from('support_messages').select('*').eq('ticket_id', ticket.id).order('created_at', { ascending: true });
     if (data) setHistorico(data);
-    if (ticket.status !== 'Em Atendimento') await supabase.from('support_tickets').update({ status: 'Em Atendimento' }).eq('id', ticket.id);
+    
+    if (ticket.status !== 'Em Atendimento') {
+      await supabase.from('support_tickets').update({ status: 'Em Atendimento' }).eq('id', ticket.id);
+    }
   };
 
   useEffect(() => {
@@ -118,7 +127,7 @@ export default function AdminPage() {
       <div className="max-w-6xl mx-auto">
         <h1 className="text-2xl font-bold text-white mb-6">Painel de Administração</h1>
 
-        {/* 🆕 CARTÕES DE ESTATÍSTICAS */}
+        {/* CARTÕES DE ESTATÍSTICAS */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <div className="bg-slate-800 p-5 rounded-xl border border-slate-700 shadow-sm">
             <p className="text-slate-400 text-xs font-bold uppercase mb-1">Total Utilizadores</p>
@@ -193,10 +202,8 @@ export default function AdminPage() {
                       {msg.sender_type === 'admin' ? 'Eu (Admin)' : msg.sender_type === 'user' ? 'Cliente' : 'Bete (Bot)'}
                     </span>
                     
-                    {/* Mensagem Original */}
                     {msg.message && <p>{msg.message}</p>}
                     
-                    {/* Tradução (se existir) */}
                     {msg.translated_message && (
                       <p className="mt-2 pt-2 border-t border-white/20 text-xs italic opacity-80">
                         {msg.translated_message}
