@@ -13,32 +13,47 @@ export async function POST(request: Request) {
   try {
     const { userId, valor, metodo, telefone } = await request.json();
 
+    if (!telefone && metodo === 'M-Pesa') {
+      return NextResponse.json({ error: 'O número de telefone é obrigatório.' }, { status: 400 });
+    }
+
+    // 🆕 Formata o número corretamente (Moçambique: 258 + 9 dígitos)
     const numeroFormatado = telefone.startsWith('258') ? telefone : `258${telefone}`;
+
+    // 🆕 Gera uma referência curta e única para a M-Pesa (máx. 20 caracteres)
+    const referenciaCurta = `KNX-${Date.now().toString().slice(-8)}`;
 
     const { data: transacao, error } = await supabaseAdmin
       .from('transactions')
-      .insert({ user_id: userId, tipo: 'Recarga', valor: parseFloat(valor), metodo: metodo || 'M-Pesa', status: 'Pendente' })
+      .insert({ 
+        user_id: userId, 
+        tipo: 'Recarga', 
+        valor: parseFloat(valor), 
+        metodo: metodo || 'M-Pesa', 
+        status: 'Pendente',
+        referencia: referenciaCurta // 🆕 Guarda a referência curta
+      })
       .select().single();
 
     if (error) throw error;
 
+    // 🆕 As chaves devem estar nas variáveis de ambiente da Vercel
     const mpesa = new MpesaService({
-      apiKey: 'gxS17i8BNYIE99jzago7NTG119W4ECD1', 
-      publicKey: 'MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAmptSWqV7cGUUJJhUBxsMLonux24u+FoTlrb+4Kgc6092JIszmI1QUoMohaDDXSVueXx6IXwYGsjjWY32HGXj1iQhkALXfObJ4DqXn5h6E8y5/xQYNAyd5bpN5Z8r892B6toGzZQVB7qtebH4apDjmvTi5FGZVjVYxalyyQkj4uQbbRQjgCkubSi45Xl4CGtLqZztsKssWz3mcKncgTnq3DHGYYEYiKq0xIj100LGbnvNz20Sgqmw/cH+Bua4GJsWYLEqf/h/yiMgiBbxFxsnwZl0im5vXDlwKPw+QnO2fscDhxZFAwV06bgG0oEoWm9FnjMsfvwm0rUNYFlZ+TOtCEhmhtFp+Tsx9jPCuOd5h2emGdSKD8A6jtwhNa7oQ8RtLEEqwAn44orENa1ibOkxMiiiFpmmJkwgZPOG/zMCjXIrrhDWTDUOZaPx/lEQoInJoE2i43VN/HTGCCw8dKQAwg0jsEXau5ixD0GUothqvuX3B9taoeoFAIvUPEq35YulprMM7ThdKodSHvhnwKG82dCsodRwY428kg2xM/UjiTENog4B6zzZfPhMxFlOSFX4MnrqkAS+8Jamhy1GgoHkEMrsT5+/ofjCx0HjKbT5NuA2V/lmzgJLl3jIERadLzuTYnKGWxVJcGLkWXlEPYLbiaKzbJb2sYxt+Kt5OxQqC1MCAwEAAQ==', 
+      apiKey: process.env.MPESA_API_KEY!, 
+      publicKey: process.env.MPESA_PUBLIC_KEY!, 
       serviceProviderCode: '171717',
       origin: 'developer.mpesa.vm.co.mz',
-      env: 'sandbox',
+      env: 'sandbox', // Muda para 'production' quando fores a sério
     });
 
     try {
       console.log("A enviar pedido para a M-Pesa...");
       
-      // AQUI ESTÁ A CORREÇÃO: O 'as any' no final do objeto
       const resposta = await mpesa.c2b({
-        amount: Math.round(parseFloat(valor)),
+        amount: parseFloat(valor), // 🆕 Envia o valor com decimais (ex: 3.20)
         number: numeroFormatado, 
-        transactionReference: transacao.id,
-        thirdPartyReference: transacao.id,
+        transactionReference: referenciaCurta, // 🆕 Usa a referência curta
+        thirdPartyReference: referenciaCurta, // 🆕 Usa a referência curta
         serviceProviderCode: '171717',
         origin: 'developer.mpesa.vm.co.mz'
       } as any);
