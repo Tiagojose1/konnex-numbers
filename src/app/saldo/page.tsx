@@ -8,19 +8,33 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { formatarMoeda, CURRENCY_SYMBOLS, RATES } from '@/lib/currencies'; 
 
+// 🆕 Função que gera valores redondos e bonitos consoante a moeda do país
+const gerarOpcoesDeposito = (moeda: string) => {
+  const taxa = RATES[moeda] || 1;
+  let valoresLocais = [];
+
+  switch (moeda) {
+    case 'MZN': valoresLocais = [210, 250, 300, 350, 400, 500]; break;
+    case 'AOA': valoresLocais = [1000, 2000, 3000, 5000, 10000, 20000]; break;
+    case 'BRL': valoresLocais = [10, 20, 30, 50, 100, 200]; break;
+    case 'EUR': valoresLocais = [5, 10, 15, 20, 30, 50]; break;
+    case 'ZAR': valoresLocais = [50, 100, 200, 300, 500, 1000]; break;
+    case 'INR': valoresLocais = [100, 200, 500, 1000, 2000, 5000]; break;
+    default:    valoresLocais = [3, 5, 10, 15, 20, 50]; break; // USD e outros
+  }
+
+  return valoresLocais.map(valor => ({
+    label: valor.toString(),
+    localAmount: valor,
+    usdAmount: valor / taxa // Converte para USD para o backend
+  }));
+};
+
 export default function AdicionarSaldoPage() {
   const router = useRouter();
   
-  const valoresPadraoUSD = [
-    { usd: 3.2874145, label: '210' },
-    { usd: 3.9135880, label: '250' },
-    { usd: 4.6963056, label: '300' },
-    { usd: 5.4790231, label: '350' },
-    { usd: 6.2617410, label: '400' },
-    { usd: 7.8271760, label: '500' }
-  ];
-
-  const [valorUSD, setValorUSD] = useState<number>(valoresPadraoUSD[0].usd);
+  const [opcoesDeposito, setOpcoesDeposito] = useState<any[]>([]);
+  const [valorUSD, setValorUSD] = useState<number>(0);
   const [metodo, setMetodo] = useState<string>('');
   const [mensagem, setMensagem] = useState<string>('');
   const [aProcessar, setAProcessar] = useState(false);
@@ -45,8 +59,14 @@ export default function AdicionarSaldoPage() {
       }
       const { data: profile } = await supabase.from('profiles').select('saldo, currency').eq('id', session.user.id).single();
       if (profile) {
+        const moeda = profile.currency || 'MZN';
         setSaldoAtual(parseFloat(profile.saldo) || 0);
-        setCurrency(profile.currency || 'MZN');
+        setCurrency(moeda);
+        
+        // Gera os botões dinâmicos
+        const opcoes = gerarOpcoesDeposito(moeda);
+        setOpcoesDeposito(opcoes);
+        setValorUSD(opcoes[0].usdAmount);
       }
     };
     carregarSaldo();
@@ -65,7 +85,6 @@ export default function AdicionarSaldoPage() {
   const handlePagamento = async () => {
     if (!metodo) return setMensagem('Por favor, selecione um método de pagamento.');
     
-    // 🆕 Comparações blindadas com .includes()
     const isMpesa = metodoNormalizado.includes('m-pesa');
     const isEmola = metodoNormalizado.includes('e-mola');
     const isCartao = metodoNormalizado.includes('cartão');
@@ -97,10 +116,10 @@ export default function AdicionarSaldoPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           userId: session.user.id, 
-          valor: valorUSD, 
+          valor: valorUSD,
           metodo: metodo,
           telefone: telefone,
-          currency: currency
+          currency: currency 
         }),
       });
       
@@ -109,11 +128,9 @@ export default function AdicionarSaldoPage() {
       if (dados.error) {
         setMensagem(`Erro: ${dados.error}`);
       } else {
-        // 🆕 Se for M-Pesa, mostramos a mensagem para inserir o PIN
         if (isMpesa || isEmola) {
           setMensagem(dados.mensagem);
         } else {
-          // Para cartão/transferência, mostramos o ecrã verde
           setMensagem('');
           setDepositoConfirmado(valorUSD * (RATES[currency] || 1)); 
         }
@@ -152,9 +169,13 @@ export default function AdicionarSaldoPage() {
   const simbolo = CURRENCY_SYMBOLS[currency] || currency;
   const taxa = RATES[currency] || 1;
 
+  // 🆕 Filtra os métodos de pagamento com base na moeda do utilizador
   const metodosPagamento = [
-    { id: 'M-Pesa', icone: '/m-pesa.png' },
-    { id: 'e-Mola', icone: '/e-mola.png' },
+    // M-Pesa e e-Mola só aparecem se o utilizador for de Moçambique (MZN)
+    ...(currency === 'MZN' ? [
+      { id: 'M-Pesa', icone: '/m-pesa.png' },
+      { id: 'e-Mola', icone: '/e-mola.png' },
+    ] : []),
     { id: 'Cartão de Crédito', icone: '/cartao-de-credito.webp' },
     { id: 'Transferência', icone: 'https://cdn-icons-png.flaticon.com/512/2830/2830284.png' }
   ];
@@ -173,19 +194,20 @@ export default function AdicionarSaldoPage() {
 
       <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
         
-        <label className="block text-xs font-bold text-gray-700 mb-2 uppercase tracking-wide">Escolha o valor (USD)</label>
+        <label className="block text-xs font-bold text-gray-700 mb-2 uppercase tracking-wide">Escolha o valor</label>
         <div className="grid grid-cols-3 gap-2 mb-5">
-          {valoresPadraoUSD.map((v) => (
+          {opcoesDeposito.map((v) => (
             <button
               key={v.label}
-              onClick={() => setValorUSD(v.usd)}
+              onClick={() => setValorUSD(v.usdAmount)}
               className={`py-2 rounded-lg border transition-all flex flex-col items-center justify-center ${
-                valorUSD === v.usd ? 'bg-purple-600 text-white border-purple-600 shadow-md' : 'bg-white text-gray-700 border-gray-300 hover:border-purple-400'
+                valorUSD === v.usdAmount ? 'bg-purple-600 text-white border-purple-600 shadow-md' : 'bg-white text-gray-700 border-gray-300 hover:border-purple-400'
               }`}
             >
-              <span className="text-sm font-bold">$ {v.usd.toFixed(2)}</span>
-              <span className={`text-[10px] mt-0.5 ${valorUSD === v.usd ? 'text-purple-200' : 'text-gray-500'}`}>
-                ≈ {simbolo} {v.label},00
+              {/* Mostra o valor local em destaque e o USD por baixo */}
+              <span className="text-sm font-bold">{simbolo} {v.localAmount}</span>
+              <span className={`text-[10px] mt-0.5 ${valorUSD === v.usdAmount ? 'text-purple-200' : 'text-gray-500'}`}>
+                ≈ $ {v.usdAmount.toFixed(2)}
               </span>
             </button>
           ))}
@@ -247,7 +269,7 @@ export default function AdicionarSaldoPage() {
             <h3 className="font-bold text-blue-800 text-sm mb-1">Dados para Pagamento</h3>
             <p className="text-xs text-blue-700 mb-1">Entidade: <span className="font-mono font-bold">00123</span></p>
             <p className="text-xs text-blue-700 mb-1">Referência: <span className="font-mono font-bold text-base">{referenciaGerada}</span></p>
-            <p className="text-xs text-blue-700 mb-1">Valor: <span className="font-bold">$ {valorUSD.toFixed(2)} (≈ {simbolo} {(valorUSD * taxa).toFixed(2)})</span></p>
+            <p className="text-xs text-blue-700 mb-1">Valor: <span className="font-bold">{simbolo} {(valorUSD * taxa).toFixed(2)}</span></p>
             <p className="text-[10px] text-blue-600 mt-1">Após pagar, clique em "JÁ PAGUEI".</p>
           </div>
         )}
