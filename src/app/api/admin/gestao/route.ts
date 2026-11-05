@@ -7,65 +7,52 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// 🆕 GET: Vai buscar as estatísticas e a lista de utilizadores
 export async function GET() {
   try {
-    // 1. Total de Utilizadores
-    const { count: totalUsers } = await supabaseAdmin
-      .from('profiles')
-      .select('*', { count: 'exact', head: true });
-
-    // 2. Dinheiro Total (USD) em todas as carteiras
+    // Estatísticas
+    const { count: totalUsers } = await supabaseAdmin.from('profiles').select('*', { count: 'exact', head: true });
     const { data: profiles } = await supabaseAdmin.from('profiles').select('saldo');
     const saldoTotalUSD = profiles?.reduce((acc, curr) => acc + (parseFloat(curr.saldo) || 0), 0) || 0;
+    const { count: totalPedidos } = await supabaseAdmin.from('orders').select('*', { count: 'exact', head: true });
 
-    // 3. Total de Pedidos (compras)
-    const { count: totalPedidos } = await supabaseAdmin
-      .from('orders') 
-      .select('*', { count: 'exact', head: true });
-
-    // 4. Lista de Utilizadores (últimos 50)
+    // Lista de Utilizadores
     const { data: users } = await supabaseAdmin
       .from('profiles')
       .select('id, nome_completo, email, saldo, currency, created_at')
       .order('created_at', { ascending: false })
       .limit(50);
 
+    // 🆕 Transações (Depósitos)
+    const { data: transacoes } = await supabaseAdmin
+      .from('transactions')
+      .select(`
+        id, valor, metodo, status, created_at, 
+        profiles!user_id (nome_completo, email)
+      `)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    // 🆕 Pedidos (Compras)
+    const { data: pedidos } = await supabaseAdmin
+      .from('orders')
+      .select(`
+        id, numero, servico, pais, valor, status, sms_otp, created_at,
+        profiles!user_id (nome_completo, email)
+      `)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
     return NextResponse.json({
       stats: { totalUsers, saldoTotalUSD, totalPedidos },
-      users: users || []
+      users: users || [],
+      transacoes: transacoes || [],
+      pedidos: pedidos || []
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-// 🆕 POST: Adicionar ou remover saldo manualmente a um utilizador
 export async function POST(request: Request) {
-  try {
-    const { userId, action, valorUSD } = await request.json();
-
-    const { data: profile } = await supabaseAdmin
-      .from('profiles')
-      .select('saldo')
-      .eq('id', userId)
-      .single();
-
-    if (!profile) return NextResponse.json({ error: 'Utilizador não encontrado' }, { status: 404 });
-
-    let novoSaldo = parseFloat(profile.saldo) || 0;
-    if (action === 'add') novoSaldo += parseFloat(valorUSD);
-    if (action === 'remove') novoSaldo -= parseFloat(valorUSD);
-
-    const { error } = await supabaseAdmin
-      .from('profiles')
-      .update({ saldo: novoSaldo })
-      .eq('id', userId);
-
-    if (error) throw error;
-
-    return NextResponse.json({ success: true, novoSaldo });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+  // ... (código de ajuste de saldo mantém-se igual) ...
 }

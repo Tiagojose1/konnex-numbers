@@ -22,10 +22,10 @@ export default function PerfilPage() {
   const [telefone, setTelefone] = useState('');
   const [saldo, setSaldo] = useState(0);
   const [currency, setCurrency] = useState('MZN');
-  const [displayId, setDisplayId] = useState('');
+  const [userId, setUserId] = useState(''); // 🆕 ID real do utilizador
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   
-  // 🆕 Novos Dados Pessoais
+  // Novos Dados Pessoais
   const [dataNascimento, setDataNascimento] = useState('');
   const [paisResidencia, setPaisResidencia] = useState('Moçambique');
   const [genero, setGenero] = useState('');
@@ -43,6 +43,7 @@ export default function PerfilPage() {
       }
 
       setEmail(session.user.email || '');
+      setUserId(session.user.id); // 🆕 Guarda o ID real
 
       const { data: profile } = await supabase
         .from('profiles')
@@ -52,13 +53,11 @@ export default function PerfilPage() {
 
       if (profile) {
         setNome(profile.nome_completo || '');
-        setTelefone(profile.telefone || '');
+        setTelefone(profile.telefone || 'Não definido'); // 🆕 Fallback
         setCurrency(profile.currency || 'MZN');
-        setDisplayId(profile.display_id || '');
         setSaldo(parseFloat(profile.saldo) || 0);
         setAvatarUrl(profile.avatar_url || null);
         
-        // 🆕 Carregar os novos campos (Verificando se existem para não dar erro)
         setDataNascimento(profile.data_nascimento || '');
         setPaisResidencia(profile.pais_residencia || 'Moçambique');
         setGenero(profile.genero || '');
@@ -80,19 +79,17 @@ export default function PerfilPage() {
 
       const fileExt = file.name.split('.').pop();
       const fileName = `${session.user.id}-${Math.random()}.${fileExt}`;
-      const filePath = `${fileName}`;
 
-      const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file);
+      const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, file);
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
+      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(fileName);
 
       const { error: updateError } = await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', session.user.id);
       if (updateError) throw updateError;
 
       setAvatarUrl(publicUrl);
       toast.success('Foto atualizada com sucesso!');
-
     } catch (err: unknown) {
       console.error(err);
       toast.error('Erro ao fazer upload da foto.');
@@ -107,12 +104,11 @@ export default function PerfilPage() {
 
     const toastId = toast.loading('A atualizar o perfil...');
 
-    // 1. Atualizar Dados Pessoais e Novos Campos
     const { error: errorDados } = await supabase
       .from('profiles')
       .update({ 
         nome_completo: nome, 
-        telefone: telefone,
+        telefone: telefone === 'Não definido' ? null : telefone,
         data_nascimento: dataNascimento || null,
         pais_residencia: paisResidencia,
         genero: genero
@@ -124,7 +120,6 @@ export default function PerfilPage() {
       return;
     }
 
-    // 2. Atualizar Palavra-passe (se o campo estiver preenchido)
     if (novaPassword.trim() !== '') {
       if (novaPassword.length < 6) {
         toast.error('A palavra-passe deve ter pelo menos 6 caracteres.', { id: toastId });
@@ -152,7 +147,6 @@ export default function PerfilPage() {
   return (
     <div className="min-h-screen bg-slate-950 pb-24 font-sans text-white">
       
-      {/* Cabeçalho Dinâmico */}
       <header className="bg-[#0f172a] sticky top-0 z-50 px-4 py-4 flex items-center justify-between border-b border-slate-800">
         <div className="flex items-center gap-3">
           {isEditing && (
@@ -167,9 +161,6 @@ export default function PerfilPage() {
 
       <div className="max-w-2xl mx-auto p-4">
         
-        {/* ========================================== */}
-        {/* ECRÃ 1: VISÃO PRINCIPAL DO PERFIL          */}
-        {/* ========================================== */}
         {!isEditing && (
           <>
             <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-4 mb-6 flex justify-between items-center shadow-lg">
@@ -182,7 +173,7 @@ export default function PerfilPage() {
               </Link>
             </div>
 
-            {/* Cartão de Informação (Na tela principal mostra apenas Nome, Telefone e ID) */}
+            {/* Cartão de Informação */}
             <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-6 mb-6 flex items-center gap-4">
               <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
                 {avatarUrl ? (
@@ -199,9 +190,15 @@ export default function PerfilPage() {
               </div>
 
               <div className="flex-1">
-                <h2 className="text-xl font-bold">{nome}</h2>
-                <p className="text-slate-400 text-sm mt-1">📞 {telefone}</p>
-                <p className="text-slate-500 text-xs font-mono mt-1">ID: {displayId}</p>
+                <h2 className="text-xl font-bold">{nome || 'Utilizador Konnex'}</h2>
+                {/* 🆕 Mostra o telefone correto ou aviso */}
+                <p className="text-slate-400 text-sm mt-1">
+                  📞 {telefone === 'Não definido' ? 'Número não registado' : telefone}
+                </p>
+                {/* 🆕 Mostra o ID Real (UUID curto) em vez da variável vazia */}
+                <p className="text-slate-500 text-xs font-mono mt-1">
+                  ID: {userId ? userId.split('-')[0].toUpperCase() : '---'}
+                </p>
               </div>
             </div>
 
@@ -241,13 +238,9 @@ export default function PerfilPage() {
           </>
         )}
 
-        {/* ========================================== */}
-        {/* ECRÃ 2: FORMULÁRIO DE EDIÇÃO               */}
-        {/* ========================================== */}
         {isEditing && (
           <div className="space-y-6">
             
-            {/* Secção: Dados Pessoais */}
             <div>
               <h2 className="text-lg font-bold mb-4 text-slate-200">Dados Pessoais</h2>
               <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-4 space-y-4">
@@ -285,7 +278,7 @@ export default function PerfilPage() {
 
                 <div>
                   <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Telefone</label>
-                  <input type="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)} className="w-full p-3 bg-[#0f172a] text-white border border-slate-600 rounded-lg outline-none focus:border-yellow-400" />
+                  <input type="tel" value={telefone === 'Não definido' ? '' : telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="Ex: 84XXXXXXX" className="w-full p-3 bg-[#0f172a] text-white border border-slate-600 rounded-lg outline-none focus:border-yellow-400" />
                 </div>
 
                 <div>
@@ -296,7 +289,6 @@ export default function PerfilPage() {
               </div>
             </div>
 
-            {/* Secção: Segurança */}
             <div>
               <h2 className="text-lg font-bold mb-4 text-slate-200">Segurança</h2>
               <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-4">
@@ -309,7 +301,6 @@ export default function PerfilPage() {
             <button onClick={handleAtualizarPerfil} className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-4 rounded-xl text-lg transition-colors shadow-lg mt-4">
               ATUALIZAR PERFIL
             </button>
-
           </div>
         )}
 
