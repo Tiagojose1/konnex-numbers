@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useRouter } from 'next/navigation'; // 🆕 Importação necessária para o bloqueio
 import { toast } from 'sonner';
 
 interface Ticket {
@@ -29,8 +30,10 @@ interface Stats {
 }
 
 export default function AdminPage() {
+  const router = useRouter(); // 🆕 Inicializa o router
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
+  const [autorizado, setAutorizado] = useState(false); // 🆕 Estado de autorização
   
   // Estado para as Estatísticas
   const [stats, setStats] = useState<Stats>({ totalUsers: 0, saldoTotalUSD: 0, totalPedidos: 0 });
@@ -65,8 +68,27 @@ export default function AdminPage() {
     setLoading(false);
   };
 
+  // 🆕 VERIFICAÇÃO DE SEGURANÇA DO ADMIN
   useEffect(() => {
-    // Função interna para evitar o erro do React Hooks (set-state-in-effect)
+    const verificarAcesso = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      // Verifica se está logado e se o email é o teu
+      if (!session || session.user.email !== 'alexjosepais6@gmail.com') {
+        toast.error('Acesso negado. Esta área é restrita.');
+        router.push('/dashboard');
+        return;
+      }
+
+      setAutorizado(true); // Se for o teu email, libera o acesso
+    };
+
+    verificarAcesso();
+  }, [router]);
+
+  useEffect(() => {
+    if (!autorizado) return; // 🆕 Só carrega os dados se for o admin
+
     const inicializar = async () => {
       await carregarStats();
       await carregarTickets();
@@ -76,9 +98,8 @@ export default function AdminPage() {
 
     const canalTickets = supabase.channel('admin-tickets').on('postgres_changes', { event: '*', schema: 'public', table: 'support_tickets' }, () => carregarTickets()).subscribe();
     return () => { supabase.removeChannel(canalTickets); };
-  }, []);
+  }, [autorizado]); // 🆕 Adicionado 'autorizado' como dependência
 
-  // 🆕 Função abrirTicket restaurada (O build falhava porque ela tinha desaparecido)
   const abrirTicket = async (ticket: Ticket) => {
     setTicketSelecionado(ticket);
     setChatAberto(true);
@@ -121,6 +142,15 @@ export default function AdminPage() {
     }
     setEnviando(false);
   };
+
+  // 🆕 Se ainda não estiver autorizado, mostra um ecrã de loading para evitar piscar
+  if (!autorizado) {
+    return (
+      <div className="min-h-screen bg-[#0f172a] flex items-center justify-center">
+        <p className="text-white animate-pulse">A verificar credenciais...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#0f172a] p-6 font-sans text-white pb-24">
