@@ -6,9 +6,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
-import { formatarMoeda, CURRENCY_SYMBOLS, RATES } from '@/lib/currencies'; 
+import { formatarMoeda, CURRENCY_SYMBOLS, RATES, setRates } from '@/lib/currencies'; 
 
-// 🆕 Função que gera valores redondos e bonitos consoante a moeda do país
 const gerarOpcoesDeposito = (moeda: string) => {
   const taxa = RATES[moeda] || 1;
   let valoresLocais = [];
@@ -19,14 +18,13 @@ const gerarOpcoesDeposito = (moeda: string) => {
     case 'BRL': valoresLocais = [10, 20, 30, 50, 100, 200]; break;
     case 'EUR': valoresLocais = [5, 10, 15, 20, 30, 50]; break;
     case 'ZAR': valoresLocais = [50, 100, 200, 300, 500, 1000]; break;
-    case 'INR': valoresLocais = [100, 200, 500, 1000, 2000, 5000]; break;
-    default:    valoresLocais = [3, 5, 10, 15, 20, 50]; break; // USD e outros
+    default:    valoresLocais = [3, 5, 10, 15, 20, 50]; break;
   }
 
   return valoresLocais.map(valor => ({
     label: valor.toString(),
     localAmount: valor,
-    usdAmount: valor / taxa // Converte para USD para o backend
+    usdAmount: valor / taxa
   }));
 };
 
@@ -44,11 +42,26 @@ export default function AdicionarSaldoPage() {
   
   const [telefone, setTelefone] = useState('');
   const [referenciaGerada, setReferenciaGerada] = useState('');
+  const [pixGerado, setPixGerado] = useState('');
   
   const [numeroCartao, setNumeroCartao] = useState('');
   const [bandeiraCartao, setBandeiraCartao] = useState<string | null>(null);
 
   const metodoNormalizado = metodo.trim().toLowerCase();
+
+  // 🆕 1. Carrega o câmbio real da internet antes de mostrar a página
+  useEffect(() => {
+    const carregarCambio = async () => {
+      try {
+        const res = await fetch('/api/cambio');
+        const taxasReais = await res.json();
+        setRates(taxasReais); 
+      } catch (error) {
+        console.error('Erro ao carregar câmbio, a usar valores de segurança.');
+      }
+    };
+    carregarCambio();
+  }, []);
 
   useEffect(() => {
     const carregarSaldo = async () => {
@@ -63,7 +76,6 @@ export default function AdicionarSaldoPage() {
         setSaldoAtual(parseFloat(profile.saldo) || 0);
         setCurrency(moeda);
         
-        // Gera os botões dinâmicos
         const opcoes = gerarOpcoesDeposito(moeda);
         setOpcoesDeposito(opcoes);
         setValorUSD(opcoes[0].usdAmount);
@@ -89,6 +101,7 @@ export default function AdicionarSaldoPage() {
     const isEmola = metodoNormalizado.includes('e-mola');
     const isCartao = metodoNormalizado.includes('cartão');
     const isTransferencia = metodoNormalizado.includes('transferência');
+    const isPix = metodoNormalizado.includes('pix');
 
     if ((isMpesa || isEmola) && !telefone) return setMensagem('Por favor, insira o número de telefone.');
     if (isCartao && numeroCartao.replace(/\s/g, '').length < 16) return setMensagem('Insira um número de cartão válido (16 dígitos).');
@@ -97,6 +110,12 @@ export default function AdicionarSaldoPage() {
       const ref = Math.floor(100000000 + Math.random() * 900000000).toString();
       setReferenciaGerada(ref);
       setMensagem('Por favor, pague a referência gerada abaixo no seu banco.');
+      return;
+    }
+
+    if (isPix) {
+      setPixGerado(`00020126580014BR.GOV.BCB.PIX0136${Math.random().toString(36).substring(2, 15)}520400005303986540${(valorUSD * (RATES[currency] || 1)).toFixed(2)}5802BR5913KonnexNumbers6009SAO PAULO62070503***6304ABCD`);
+      setMensagem('Pix gerado! Escaneie o QR Code ou copie o código abaixo.');
       return;
     }
 
@@ -169,14 +188,16 @@ export default function AdicionarSaldoPage() {
   const simbolo = CURRENCY_SYMBOLS[currency] || currency;
   const taxa = RATES[currency] || 1;
 
-  // 🆕 Filtra os métodos de pagamento com base na moeda do utilizador
+  // 🆕 Filtra os métodos de pagamento com base no país
   const metodosPagamento = [
-    // M-Pesa e e-Mola só aparecem se o utilizador for de Moçambique (MZN)
     ...(currency === 'MZN' ? [
       { id: 'M-Pesa', icone: '/m-pesa.png' },
       { id: 'e-Mola', icone: '/e-mola.png' },
     ] : []),
     { id: 'Cartão de Crédito', icone: '/cartao-de-credito.webp' },
+    ...(currency === 'BRL' ? [
+      { id: 'Pix', icone: 'https://cdn-icons-png.flaticon.com/512/10326/10326154.png' }
+    ] : []),
     { id: 'Transferência', icone: 'https://cdn-icons-png.flaticon.com/512/2830/2830284.png' }
   ];
 
@@ -204,7 +225,6 @@ export default function AdicionarSaldoPage() {
                 valorUSD === v.usdAmount ? 'bg-purple-600 text-white border-purple-600 shadow-md' : 'bg-white text-gray-700 border-gray-300 hover:border-purple-400'
               }`}
             >
-              {/* Mostra o valor local em destaque e o USD por baixo */}
               <span className="text-sm font-bold">{simbolo} {v.localAmount}</span>
               <span className={`text-[10px] mt-0.5 ${valorUSD === v.usdAmount ? 'text-purple-200' : 'text-gray-500'}`}>
                 ≈ $ {v.usdAmount.toFixed(2)}
@@ -218,7 +238,7 @@ export default function AdicionarSaldoPage() {
           {metodosPagamento.map((m) => (
             <button
               key={m.id}
-              onClick={() => { setMetodo(m.id); setMensagem(''); setReferenciaGerada(''); }}
+              onClick={() => { setMetodo(m.id); setMensagem(''); setReferenciaGerada(''); setPixGerado(''); }}
               className={`py-2 px-3 rounded-lg border flex items-center gap-2 transition-all ${
                 metodoNormalizado === m.id.toLowerCase() ? 'bg-purple-50 border-purple-600 ring-1 ring-purple-600' : 'bg-white border-gray-300 hover:border-purple-400'
               }`}
@@ -236,13 +256,7 @@ export default function AdicionarSaldoPage() {
         {(metodoNormalizado.includes('m-pesa') || metodoNormalizado.includes('e-mola')) && (
           <div className="mb-4">
             <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wide">Número de Telefone</label>
-            <input 
-              type="tel" 
-              placeholder="Ex: 84XXXXXXX" 
-              value={telefone} 
-              onChange={(e) => setTelefone(e.target.value)} 
-              className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 outline-none text-sm" 
-            />
+            <input type="tel" placeholder="Ex: 84XXXXXXX" value={telefone} onChange={(e) => setTelefone(e.target.value)} className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 outline-none text-sm" />
           </div>
         )}
 
@@ -274,8 +288,22 @@ export default function AdicionarSaldoPage() {
           </div>
         )}
 
+        {metodoNormalizado.includes('pix') && pixGerado && (
+          <div className="mb-4 p-4 bg-teal-50 border border-teal-200 rounded-lg text-center flex flex-col items-center">
+            <h3 className="font-bold text-teal-800 text-sm mb-2">Pague com Pix</h3>
+            <div className="w-32 h-32 bg-white p-1 rounded-lg border border-teal-200 mb-2 flex items-center justify-center">
+                <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=KonnexPix" alt="QR Code Pix" className="w-full h-full" />
+            </div>
+            <p className="text-xs text-teal-700 mb-2">Ou use o Pix Copia e Cola:</p>
+            <div className="bg-white p-2 rounded border border-teal-200 w-full break-all text-[10px] text-gray-600 mb-2 font-mono">
+              {pixGerado}
+            </div>
+            <button onClick={() => { navigator.clipboard.writeText(pixGerado); alert('Código Pix copiado!'); }} className="bg-teal-600 text-white text-xs px-4 py-1.5 rounded hover:bg-teal-700">Copiar Código</button>
+          </div>
+        )}
+
         <button onClick={handlePagamento} disabled={aProcessar} className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3.5 rounded-lg transition-colors shadow-md disabled:opacity-50 text-sm">
-          {aProcessar ? 'A processar...' : (metodoNormalizado.includes('transferência') && referenciaGerada ? 'JÁ PAGUEI' : 'CONFIRMAR PAGAMENTO')}
+          {aProcessar ? 'A processar...' : (metodoNormalizado.includes('transferência') && referenciaGerada ? 'JÁ PAGUEI' : metodoNormalizado.includes('pix') && pixGerado ? 'JÁ PAGUEI O PIX' : 'CONFIRMAR PAGAMENTO')}
         </button>
 
         {mensagem && (

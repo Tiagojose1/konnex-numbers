@@ -1,10 +1,10 @@
 // src/lib/currencies.ts
 
-export const RATES: Record<string, number> = {
+export let RATES: Record<string, number> = {
   USD: 1,
   MZN: 63.88,   
   BRL: 5.4379,  
-  EUR: 1.1161,  
+  EUR: 0.89,  // 🆕 Corrigido: 1 USD = 0.89 EUR (ou 1 EUR = 1.12 USD)
   ZAR: 18.50,   
   AOA: 830.00,  
 };
@@ -18,7 +18,11 @@ export const CURRENCY_SYMBOLS: Record<string, string> = {
   AOA: 'Kz',
 };
 
-// Mostra o valor no ecrã convertido para a moeda do utilizador
+// 🆕 Atualiza as taxas com os valores da internet
+export function setRates(newRates: Record<string, number>) {
+  RATES = { ...RATES, ...newRates };
+}
+
 export function formatarMoeda(valorUSD: number, moeda: string): string {
   const rate = RATES[moeda] || 1;
   const valorConvertido = valorUSD * rate;
@@ -26,7 +30,6 @@ export function formatarMoeda(valorUSD: number, moeda: string): string {
   return `${simbolo} ${valorConvertido.toFixed(2)}`;
 }
 
-// Converte o que o utilizador digita (MT) de volta para USD (para a base de dados)
 export function converterParaUSD(valorLocal: number, moedaOrigem: string): number {
   const rate = RATES[moedaOrigem] || 1;
   return valorLocal / rate;
