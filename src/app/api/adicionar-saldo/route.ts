@@ -3,6 +3,7 @@ export const runtime = 'nodejs';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { MpesaService } from 'mpesa-mz-sdk'; 
+import { RATES } from '@/lib/currencies'; // 🆕 Importa as taxas de câmbio
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -11,49 +12,57 @@ const supabaseAdmin = createClient(
 
 export async function POST(request: Request) {
   try {
-    const { userId, valor, metodo, telefone } = await request.json();
+    // 🆕 Recebemos a moeda do utilizador (ex: 'MZN', 'BRL', 'EUR')
+    const { userId, valor, metodo, telefone, currency } = await request.json();
 
     if (!telefone && metodo === 'M-Pesa') {
       return NextResponse.json({ error: 'O número de telefone é obrigatório.' }, { status: 400 });
     }
 
-    // 🆕 Formata o número corretamente (Moçambique: 258 + 9 dígitos)
+    // Formata o número (para Moçambique: 258 + 9 dígitos)
     const numeroFormatado = telefone.startsWith('258') ? telefone : `258${telefone}`;
 
-    // 🆕 Gera uma referência curta e única para a M-Pesa (máx. 20 caracteres)
-    const referenciaCurta = `KNX-${Date.now().toString().slice(-8)}`;
+    // Gera referência curta
+    const referenciaCurta = `KNX${Date.now().toString().slice(-8)}`;
 
     const { data: transacao, error } = await supabaseAdmin
       .from('transactions')
       .insert({ 
         user_id: userId, 
         tipo: 'Recarga', 
-        valor: parseFloat(valor), 
+        valor: parseFloat(valor), // O valor guardado na base de dados é SEMPRE em USD
         metodo: metodo || 'M-Pesa', 
         status: 'Pendente',
-        referencia: referenciaCurta // 🆕 Guarda a referência curta
+        referencia: referenciaCurta
       })
       .select().single();
 
     if (error) throw error;
 
-    // 🆕 As chaves devem estar nas variáveis de ambiente da Vercel
     const mpesa = new MpesaService({
       apiKey: process.env.MPESA_API_KEY!, 
       publicKey: process.env.MPESA_PUBLIC_KEY!, 
       serviceProviderCode: '171717',
       origin: 'developer.mpesa.vm.co.mz',
-      env: 'sandbox', // Muda para 'production' quando fores a sério
+      env: 'sandbox',
     });
 
     try {
       console.log("A enviar pedido para a M-Pesa...");
       
+      // 🆕 CONVERSÃO GLOBAL: Descobre a taxa do país do utilizador
+      const taxaDoPais = RATES[currency] || 1; 
+      
+      // 🆕 Multiplica o valor em USD pela taxa local e arredonda para inteiro
+      const valorNaMoedaLocal = Math.round(parseFloat(valor) * taxaDoPais); 
+
+      console.log(`Valor USD: ${valor} | Moeda: ${currency} | Taxa: ${taxaDoPais} | Valor a cobrar: ${valorNaMoedaLocal}`);
+
       const resposta = await mpesa.c2b({
-        amount: parseFloat(valor), // 🆕 Envia o valor com decimais (ex: 3.20)
+        amount: valorNaMoedaLocal, // 🆕 Vai enviar o valor inteiro na moeda local (ex: 210)
         number: numeroFormatado, 
-        transactionReference: referenciaCurta, // 🆕 Usa a referência curta
-        thirdPartyReference: referenciaCurta, // 🆕 Usa a referência curta
+        transactionReference: referenciaCurta,
+        thirdPartyReference: referenciaCurta,
         serviceProviderCode: '171717',
         origin: 'developer.mpesa.vm.co.mz'
       } as any);

@@ -10,7 +10,17 @@ import { formatarMoeda, CURRENCY_SYMBOLS, RATES } from '@/lib/currencies';
 
 export default function AdicionarSaldoPage() {
   const router = useRouter();
-  const [valorUSD, setValorUSD] = useState<number>(3.20);
+  
+  const valoresPadraoUSD = [
+    { usd: 3.2874145, label: '210' },
+    { usd: 3.9135880, label: '250' },
+    { usd: 4.6963056, label: '300' },
+    { usd: 5.4790231, label: '350' },
+    { usd: 6.2617410, label: '400' },
+    { usd: 7.8271760, label: '500' }
+  ];
+
+  const [valorUSD, setValorUSD] = useState<number>(valoresPadraoUSD[0].usd);
   const [metodo, setMetodo] = useState<string>('');
   const [mensagem, setMensagem] = useState<string>('');
   const [aProcessar, setAProcessar] = useState(false);
@@ -24,7 +34,8 @@ export default function AdicionarSaldoPage() {
   const [numeroCartao, setNumeroCartao] = useState('');
   const [bandeiraCartao, setBandeiraCartao] = useState<string | null>(null);
 
-  const valoresPadraoUSD = [3.20, 4.00, 5.00, 6.00, 8.00, 10.00];
+  // 🆕 Normaliza o nome do método
+  const metodoNormalizado = metodo.trim().toLowerCase();
 
   useEffect(() => {
     const carregarSaldo = async () => {
@@ -54,10 +65,10 @@ export default function AdicionarSaldoPage() {
 
   const handlePagamento = async () => {
     if (!metodo) return setMensagem('Por favor, selecione um método de pagamento.');
-    if ((metodo === 'M-Pesa' || metodo === 'e-Mola') && !telefone) return setMensagem('Por favor, insira o número de telefone.');
-    if (metodo === 'Cartão de Crédito' && numeroCartao.replace(/\s/g, '').length < 16) return setMensagem('Insira um número de cartão válido (16 dígitos).');
+    if ((metodoNormalizado === 'm-pesa' || metodoNormalizado === 'e-mola') && !telefone) return setMensagem('Por favor, insira o número de telefone.');
+    if (metodoNormalizado === 'cartão de crédito' && numeroCartao.replace(/\s/g, '').length < 16) return setMensagem('Insira um número de cartão válido (16 dígitos).');
     
-    if (metodo === 'Transferência') {
+    if (metodoNormalizado === 'transferência') {
       const ref = Math.floor(100000000 + Math.random() * 900000000).toString();
       setReferenciaGerada(ref);
       setMensagem('Por favor, pague a referência gerada abaixo no seu banco.');
@@ -80,9 +91,10 @@ export default function AdicionarSaldoPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           userId: session.user.id, 
-          valor: valorUSD, // O backend recebe o valor em USD
+          valor: valorUSD, 
           metodo: metodo,
-          telefone: telefone
+          telefone: telefone,
+          currency: currency // 🆕 AGORA ENVIA A MOEDA PARA A API
         }),
       });
       
@@ -91,7 +103,7 @@ export default function AdicionarSaldoPage() {
       if (dados.error) {
         setMensagem(`Erro: ${dados.error}`);
       } else {
-        if (metodo === 'M-Pesa' || metodo === 'e-Mola') {
+        if (metodoNormalizado === 'm-pesa' || metodoNormalizado === 'e-mola') {
           setMensagem(dados.mensagem);
         } else {
           setMensagem('');
@@ -157,15 +169,15 @@ export default function AdicionarSaldoPage() {
         <div className="grid grid-cols-3 gap-2 mb-5">
           {valoresPadraoUSD.map((v) => (
             <button
-              key={v}
-              onClick={() => setValorUSD(v)}
+              key={v.label}
+              onClick={() => setValorUSD(v.usd)}
               className={`py-2 rounded-lg border transition-all flex flex-col items-center justify-center ${
-                valorUSD === v ? 'bg-purple-600 text-white border-purple-600 shadow-md' : 'bg-white text-gray-700 border-gray-300 hover:border-purple-400'
+                valorUSD === v.usd ? 'bg-purple-600 text-white border-purple-600 shadow-md' : 'bg-white text-gray-700 border-gray-300 hover:border-purple-400'
               }`}
             >
-              <span className="text-sm font-bold">$ {v.toFixed(2)}</span>
-              <span className={`text-[10px] mt-0.5 ${valorUSD === v ? 'text-purple-200' : 'text-gray-500'}`}>
-                ≈ {simbolo} {(v * taxa).toFixed(2)}
+              <span className="text-sm font-bold">$ {v.usd.toFixed(2)}</span>
+              <span className={`text-[10px] mt-0.5 ${valorUSD === v.usd ? 'text-purple-200' : 'text-gray-500'}`}>
+                ≈ {simbolo} {v.label},00
               </span>
             </button>
           ))}
@@ -178,27 +190,33 @@ export default function AdicionarSaldoPage() {
               key={m.id}
               onClick={() => { setMetodo(m.id); setMensagem(''); setReferenciaGerada(''); }}
               className={`py-2 px-3 rounded-lg border flex items-center gap-2 transition-all ${
-                metodo === m.id ? 'bg-purple-50 border-purple-600 ring-1 ring-purple-600' : 'bg-white border-gray-300 hover:border-purple-400'
+                metodoNormalizado === m.id.toLowerCase() ? 'bg-purple-50 border-purple-600 ring-1 ring-purple-600' : 'bg-white border-gray-300 hover:border-purple-400'
               }`}
             >
               <div className="w-8 h-8 bg-white rounded-md flex items-center justify-center overflow-hidden p-1">
                 <img src={m.icone} alt={m.id} className="w-full h-full object-contain" />
               </div>
-              <span className={`text-sm font-semibold ${metodo === m.id ? 'text-purple-700' : 'text-gray-700'}`}>
+              <span className={`text-sm font-semibold ${metodoNormalizado === m.id.toLowerCase() ? 'text-purple-700' : 'text-gray-700'}`}>
                 {m.id}
               </span>
             </button>
           ))}
         </div>
 
-        {(metodo === 'M-Pesa' || metodo === 'e-Mola') && (
+        {(metodoNormalizado === 'm-pesa' || metodoNormalizado === 'e-mola') && (
           <div className="mb-4">
             <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wide">Número de Telefone</label>
-            <input type="tel" placeholder="Ex: 84XXXXXXX" value={telefone} onChange={(e) => setTelefone(e.target.value)} className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 outline-none text-sm" />
+            <input 
+              type="tel" 
+              placeholder="Ex: 84XXXXXXX" 
+              value={telefone} 
+              onChange={(e) => setTelefone(e.target.value)} 
+              className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 outline-none text-sm" 
+            />
           </div>
         )}
 
-        {metodo === 'Cartão de Crédito' && (
+        {metodoNormalizado === 'cartão de crédito' && (
           <div className="mb-4 space-y-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
             <div className="flex justify-between items-center mb-2">
               <p className="text-[10px] text-gray-500 font-bold">🔒 Ambiente seguro.</p>
@@ -216,7 +234,7 @@ export default function AdicionarSaldoPage() {
           </div>
         )}
 
-        {metodo === 'Transferência' && referenciaGerada && (
+        {metodoNormalizado === 'transferência' && referenciaGerada && (
           <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <h3 className="font-bold text-blue-800 text-sm mb-1">Dados para Pagamento</h3>
             <p className="text-xs text-blue-700 mb-1">Entidade: <span className="font-mono font-bold">00123</span></p>
@@ -227,7 +245,7 @@ export default function AdicionarSaldoPage() {
         )}
 
         <button onClick={handlePagamento} disabled={aProcessar} className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3.5 rounded-lg transition-colors shadow-md disabled:opacity-50 text-sm">
-          {aProcessar ? 'A processar...' : (metodo === 'Transferência' && referenciaGerada ? 'JÁ PAGUEI' : 'CONFIRMAR PAGAMENTO')}
+          {aProcessar ? 'A processar...' : (metodoNormalizado === 'transferência' && referenciaGerada ? 'JÁ PAGUEI' : 'CONFIRMAR PAGAMENTO')}
         </button>
 
         {mensagem && (
