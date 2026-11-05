@@ -34,7 +34,6 @@ export default function AdicionarSaldoPage() {
   const [numeroCartao, setNumeroCartao] = useState('');
   const [bandeiraCartao, setBandeiraCartao] = useState<string | null>(null);
 
-  // 🆕 Normaliza o nome do método
   const metodoNormalizado = metodo.trim().toLowerCase();
 
   useEffect(() => {
@@ -65,10 +64,17 @@ export default function AdicionarSaldoPage() {
 
   const handlePagamento = async () => {
     if (!metodo) return setMensagem('Por favor, selecione um método de pagamento.');
-    if ((metodoNormalizado === 'm-pesa' || metodoNormalizado === 'e-mola') && !telefone) return setMensagem('Por favor, insira o número de telefone.');
-    if (metodoNormalizado === 'cartão de crédito' && numeroCartao.replace(/\s/g, '').length < 16) return setMensagem('Insira um número de cartão válido (16 dígitos).');
     
-    if (metodoNormalizado === 'transferência') {
+    // 🆕 Comparações blindadas com .includes()
+    const isMpesa = metodoNormalizado.includes('m-pesa');
+    const isEmola = metodoNormalizado.includes('e-mola');
+    const isCartao = metodoNormalizado.includes('cartão');
+    const isTransferencia = metodoNormalizado.includes('transferência');
+
+    if ((isMpesa || isEmola) && !telefone) return setMensagem('Por favor, insira o número de telefone.');
+    if (isCartao && numeroCartao.replace(/\s/g, '').length < 16) return setMensagem('Insira um número de cartão válido (16 dígitos).');
+    
+    if (isTransferencia) {
       const ref = Math.floor(100000000 + Math.random() * 900000000).toString();
       setReferenciaGerada(ref);
       setMensagem('Por favor, pague a referência gerada abaixo no seu banco.');
@@ -94,7 +100,7 @@ export default function AdicionarSaldoPage() {
           valor: valorUSD, 
           metodo: metodo,
           telefone: telefone,
-          currency: currency // 🆕 AGORA ENVIA A MOEDA PARA A API
+          currency: currency
         }),
       });
       
@@ -103,9 +109,11 @@ export default function AdicionarSaldoPage() {
       if (dados.error) {
         setMensagem(`Erro: ${dados.error}`);
       } else {
-        if (metodoNormalizado === 'm-pesa' || metodoNormalizado === 'e-mola') {
+        // 🆕 Se for M-Pesa, mostramos a mensagem para inserir o PIN
+        if (isMpesa || isEmola) {
           setMensagem(dados.mensagem);
         } else {
+          // Para cartão/transferência, mostramos o ecrã verde
           setMensagem('');
           setDepositoConfirmado(valorUSD * (RATES[currency] || 1)); 
         }
@@ -203,7 +211,7 @@ export default function AdicionarSaldoPage() {
           ))}
         </div>
 
-        {(metodoNormalizado === 'm-pesa' || metodoNormalizado === 'e-mola') && (
+        {(metodoNormalizado.includes('m-pesa') || metodoNormalizado.includes('e-mola')) && (
           <div className="mb-4">
             <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wide">Número de Telefone</label>
             <input 
@@ -216,7 +224,7 @@ export default function AdicionarSaldoPage() {
           </div>
         )}
 
-        {metodoNormalizado === 'cartão de crédito' && (
+        {metodoNormalizado.includes('cartão') && (
           <div className="mb-4 space-y-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
             <div className="flex justify-between items-center mb-2">
               <p className="text-[10px] text-gray-500 font-bold">🔒 Ambiente seguro.</p>
@@ -234,7 +242,7 @@ export default function AdicionarSaldoPage() {
           </div>
         )}
 
-        {metodoNormalizado === 'transferência' && referenciaGerada && (
+        {metodoNormalizado.includes('transferência') && referenciaGerada && (
           <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <h3 className="font-bold text-blue-800 text-sm mb-1">Dados para Pagamento</h3>
             <p className="text-xs text-blue-700 mb-1">Entidade: <span className="font-mono font-bold">00123</span></p>
@@ -245,7 +253,7 @@ export default function AdicionarSaldoPage() {
         )}
 
         <button onClick={handlePagamento} disabled={aProcessar} className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3.5 rounded-lg transition-colors shadow-md disabled:opacity-50 text-sm">
-          {aProcessar ? 'A processar...' : (metodoNormalizado === 'transferência' && referenciaGerada ? 'JÁ PAGUEI' : 'CONFIRMAR PAGAMENTO')}
+          {aProcessar ? 'A processar...' : (metodoNormalizado.includes('transferência') && referenciaGerada ? 'JÁ PAGUEI' : 'CONFIRMAR PAGAMENTO')}
         </button>
 
         {mensagem && (

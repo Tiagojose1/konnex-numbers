@@ -3,7 +3,7 @@ export const runtime = 'nodejs';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { MpesaService } from 'mpesa-mz-sdk'; 
-import { RATES } from '@/lib/currencies'; // 🆕 Importa as taxas de câmbio
+import { RATES } from '@/lib/currencies';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -12,7 +12,6 @@ const supabaseAdmin = createClient(
 
 export async function POST(request: Request) {
   try {
-    // 🆕 Recebemos a moeda do utilizador (ex: 'MZN', 'BRL', 'EUR')
     const { userId, valor, metodo, telefone, currency } = await request.json();
 
     if (!telefone && metodo === 'M-Pesa') {
@@ -25,12 +24,13 @@ export async function POST(request: Request) {
     // Gera referência curta
     const referenciaCurta = `KNX${Date.now().toString().slice(-8)}`;
 
+    // 1. Grava a transação como Pendente
     const { data: transacao, error } = await supabaseAdmin
       .from('transactions')
       .insert({ 
         user_id: userId, 
         tipo: 'Recarga', 
-        valor: parseFloat(valor), // O valor guardado na base de dados é SEMPRE em USD
+        valor: parseFloat(valor), 
         metodo: metodo || 'M-Pesa', 
         status: 'Pendente',
         referencia: referenciaCurta
@@ -39,6 +39,7 @@ export async function POST(request: Request) {
 
     if (error) throw error;
 
+    // 2. Inicializa a M-Pesa (Aqui vão as chaves e a origem)
     const mpesa = new MpesaService({
       apiKey: process.env.MPESA_API_KEY!, 
       publicKey: process.env.MPESA_PUBLIC_KEY!, 
@@ -50,25 +51,19 @@ export async function POST(request: Request) {
     try {
       console.log("A enviar pedido para a M-Pesa...");
       
-      // 🆕 CONVERSÃO GLOBAL: Descobre a taxa do país do utilizador
+      // Converte USD para Moeda Local e arredonda
       const taxaDoPais = RATES[currency] || 1; 
-      
-      // 🆕 Multiplica o valor em USD pela taxa local e arredonda para inteiro
       const valorNaMoedaLocal = Math.round(parseFloat(valor) * taxaDoPais); 
 
       console.log(`Valor USD: ${valor} | Moeda: ${currency} | Taxa: ${taxaDoPais} | Valor a cobrar: ${valorNaMoedaLocal}`);
 
+      // 3. Envia o pedido (Apenas os dados da transação)
       const resposta = await mpesa.c2b({
-  amount: valorNaMoedaLocal,
-  number: numeroFormatado, 
-  transactionReference: referenciaCurta,
-  thirdPartyReference: referenciaCurta,
-  serviceProviderCode: '171717',
-  origin: 'developer.mpesa.vm.co.mz',
-  
-  // 🆕 ADICIONA ESTA LINHA (O link para onde a M-Pesa vai avisar do sucesso)
-  input_CallbackURL: 'https://konnex-numbers.vercel.app/api/webhook/mpesa' 
-} as any);
+        amount: valorNaMoedaLocal,
+        number: numeroFormatado, 
+        transactionReference: referenciaCurta,
+        thirdPartyReference: referenciaCurta,
+      });
 
       console.log("Resposta da M-Pesa:", resposta);
 
