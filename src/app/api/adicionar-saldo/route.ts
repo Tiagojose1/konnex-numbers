@@ -59,13 +59,16 @@ export async function POST(request: Request) {
       console.log(`Valor USD: ${valor} | Moeda: ${currency} | Taxa: ${taxaDoPais} | Valor a cobrar: ${valorNaMoedaLocal}`);
 
       const resposta = await mpesa.c2b({
-        amount: valorNaMoedaLocal, // 🆕 Vai enviar o valor inteiro na moeda local (ex: 210)
-        number: numeroFormatado, 
-        transactionReference: referenciaCurta,
-        thirdPartyReference: referenciaCurta,
-        serviceProviderCode: '171717',
-        origin: 'developer.mpesa.vm.co.mz'
-      } as any);
+  amount: valorNaMoedaLocal,
+  number: numeroFormatado, 
+  transactionReference: referenciaCurta,
+  thirdPartyReference: referenciaCurta,
+  serviceProviderCode: '171717',
+  origin: 'developer.mpesa.vm.co.mz',
+  
+  // 🆕 ADICIONA ESTA LINHA (O link para onde a M-Pesa vai avisar do sucesso)
+  input_CallbackURL: 'https://konnex-numbers.vercel.app/api/webhook/mpesa' 
+} as any);
 
       console.log("Resposta da M-Pesa:", resposta);
 
