@@ -4,10 +4,10 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { RealtimeChannel } from '@supabase/supabase-js';
-import { OrdersTable } from '@/components/OrdersTable';
 import { supabase } from '@/lib/supabase';
 import { Order, OrderStatus, SmsStatus } from '@/types';
 import { toast } from 'sonner';
+import Link from 'next/link'; // 🆕 Import do Link
 
 interface PedidoSupabase {
   id: string;
@@ -37,14 +37,12 @@ export default function MeusPedidosPage() {
         return;
       }
 
-      // Verificar pedidos expirados antes de carregar
       await fetch('/api/verificar-expirados', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: session.user.id }),
       });
 
-      // Buscar pedidos reais
       const { data, error } = await supabase
         .from('orders')
         .select('*')
@@ -54,24 +52,11 @@ export default function MeusPedidosPage() {
       if (error) {
         console.error('Erro ao buscar pedidos:', error);
       } else if (data) {
-        const pedidosFormatados = data.map((p: PedidoSupabase) => ({
-          id: p.id,
-          numero: p.numero,
-          status: p.status,
-          sms_otp: p.sms_otp,
-          codigo_recebido: p.codigo_recebido || undefined,
-          pais: p.pais,
-          servico: p.servico,
-          valor: p.valor,
-          data_criacao: new Date(p.data_criacao).toLocaleString('pt-MZ'),
-          data_criacao_raw: p.data_criacao,
-          provider_name: p.provider_name || undefined,
-        }));
-        setPedidos(pedidosFormatados as Order[]);
+        setPedidos(data as Order[]);
       }
       setLoading(false);
 
-      // Ligar o Tempo Real (Supabase Realtime)
+      // Ligar o Tempo Real
       canal = supabase
         .channel('alteracoes-pedidos')
         .on(
@@ -81,31 +66,38 @@ export default function MeusPedidosPage() {
             const pedidoAtualizado = payload.new as PedidoSupabase;
             
             if (pedidoAtualizado.sms_otp === 'Sucesso') {
-              toast.success(`SMS Recebido para ${pedidoAtualizado.numero}! Código: ${pedidoAtualizado.codigo_recebido}`);
-            } else if (pedidoAtualizado.status === 'Cancelado') {
-              toast.info(`O pedido ${pedidoAtualizado.numero} foi cancelado.`);
+              toast.success(`SMS Recebido para ${pedidoAtualizado.numero}!`);
+              
+              // 🆕 Enviar email quando o SMS chegar
+              if (session.user.email) {
+                fetch('/api/send-email', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    to: session.user.email,
+                    subject: `O seu código SMS chegou! 📩`,
+                    html: `
+                      <div style="font-family: sans-serif; color: #333;">
+                        <h2>O seu código chegou!</h2>
+                        <p>O código para o serviço <strong>${pedidoAtualizado.servico}</strong> é:</p>
+                        <h1 style="color: #7c3aed; letter-spacing: 5px; font-size: 32px;">${pedidoAtualizado.codigo_recebido}</h1>
+                        <p>Já pode usar este código no aplicativo.</p>
+                      </div>
+                    `
+                  })
+                }).catch(err => console.error('Erro email:', err));
+              }
             }
 
             setPedidos((prev) =>
-              prev.map((p) =>
-                p.id === pedidoAtualizado.id
-                  ? {
-                      ...p,
-                      status: pedidoAtualizado.status,
-                      sms_otp: pedidoAtualizado.sms_otp,
-                      codigo_recebido: pedidoAtualizado.codigo_recebido || undefined,
-                    }
-                  : p
-              )
+              prev.map((p) => p.id === pedidoAtualizado.id ? { ...p, ...pedidoAtualizado } : p)
             );
           }
-        )
-        .subscribe();
+        ).subscribe();
     };
 
     carregarPedidos();
 
-    // Verificar expirados a cada 60 segundos
     const intervalo = setInterval(async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
@@ -115,10 +107,7 @@ export default function MeusPedidosPage() {
           body: JSON.stringify({ userId: session.user.id }),
         });
         const dados = await resposta.json();
-        
-        if (dados.reembolsados > 0) {
-          toast.warning(`${dados.reembolsados} pedido(s) expiraram e foram reembolsados.`);
-        }
+        if (dados.reembolsados > 0) toast.warning(`${dados.reembolsados} pedido(s) expiraram.`);
       }
     }, 60000);
 
@@ -128,58 +117,58 @@ export default function MeusPedidosPage() {
     };
   }, [router]);
 
-  // 🆕 LOOP DE VERIFICAÇÃO DE SMS (A cada 5 segundos)
-  useEffect(() => {
-    const verificarSmsPendentes = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-
-      const pendentes = pedidos.filter(p => p.status === 'Aguardando' && p.provider_name);
-      
-      for (const pedido of pendentes) {
-        try {
-          await fetch('/api/verificar-sms', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              pedidoId: pedido.id,
-              userId: session.user.id // 🆕 Envia o userId para segurança
-            }),
-          });
-        } catch (err) {
-          console.error('A verificar SMS:', err);
-        }
-      }
-    };
-
-    const intervaloSms = setInterval(() => {
-      if (pedidos.some(p => p.status === 'Aguardando' && p.provider_name)) {
-        verificarSmsPendentes();
-      }
-    }, 5000);
-
-    return () => clearInterval(intervaloSms);
-  }, [pedidos]); // Executa sempre que a lista de pedidos atualiza
-
   return (
-    <div className="p-8 max-w-7xl mx-auto min-h-screen bg-gray-50">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Meus Pedidos</h1>
-        <p className="text-gray-500">Acompanhe o status dos seus números virtuais.</p>
-      </div>
+    <div className="p-4 max-w-4xl mx-auto min-h-screen bg-[#0f172a] text-white">
+      <header className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Meus Pedidos</h1>
+          <p className="text-slate-400 text-sm">Acompanhe os seus números virtuais.</p>
+        </div>
+        <Link href="/dashboard" className="text-slate-400 hover:text-white text-2xl">&times;</Link>
+      </header>
 
       {loading ? (
-        <div className="text-center py-12 text-gray-500">A carregar os seus pedidos...</div>
+        <div className="text-center py-12 text-slate-400 animate-pulse">A carregar...</div>
       ) : pedidos.length > 0 ? (
-        <OrdersTable pedidosIniciais={pedidos} />
+        <div className="space-y-4">
+          {pedidos.map((pedido) => (
+            <div key={pedido.id} className="bg-slate-800 rounded-2xl p-4 border border-slate-700 shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-slate-900 rounded-full flex items-center justify-center text-xl">
+                  {pedido.status === 'Concluído' ? '✅' : pedido.status === 'Cancelado' ? '❌' : '⏳'}
+                </div>
+                <div>
+                  <h3 className="font-bold text-lg">{pedido.servico}</h3>
+                  <p className="text-slate-400 text-sm">{pedido.numero} ({pedido.pais})</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end">
+                <div className="text-right">
+                  <p className="text-xs text-slate-500 uppercase font-bold">Status</p>
+                  <p className={`text-sm font-bold ${pedido.status === 'Concluído' ? 'text-green-400' : pedido.status === 'Cancelado' ? 'text-red-400' : 'text-yellow-400'}`}>
+                    {pedido.status}
+                  </p>
+                </div>
+                
+                {/* 🆕 Botão para a página de detalhes */}
+                <Link href={`/pedidos/${pedido.id}`} className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-lg text-sm transition-colors">
+                  Ver Detalhes
+                </Link>
+              </div>
+
+            </div>
+          ))}
+        </div>
       ) : (
-        <div className="bg-white p-12 rounded-xl shadow-sm border border-gray-200 text-center">
+        <div className="bg-slate-800 p-12 rounded-2xl border border-slate-700 text-center mt-8">
           <p className="text-4xl mb-4">📭</p>
-          <h3 className="text-lg font-bold text-gray-800 mb-2">Ainda não tem pedidos</h3>
-          <p className="text-gray-500 mb-6">Assim que comprar o seu primeiro número, ele aparecerá aqui.</p>
-          <a href="/servicos" className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg transition-colors shadow-md inline-block">
+          <h3 className="text-lg font-bold mb-2">Ainda não tem pedidos</h3>
+          <p className="text-slate-400 mb-6">Assim que comprar o seu primeiro número, ele aparecerá aqui.</p>
+          <Link href="/servicos" className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg transition-colors shadow-md inline-block">
             Obter Número Agora
-          </a>
+          </Link>
         </div>
       )}
     </div>

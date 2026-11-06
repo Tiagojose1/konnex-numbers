@@ -12,7 +12,6 @@ import { converterParaUSD } from '@/lib/currencies';
 export default function RegistoPage() {
   const router = useRouter();
   
-  // Dados do Formulário
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [dataNascimento, setDataNascimento] = useState('');
@@ -22,13 +21,11 @@ export default function RegistoPage() {
   const [captcha, setCaptcha] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Estado do País Selecionado
   const [paisSelecionado, setPaisSelecionado] = useState<Country>(
     countries.find(c => c.id === 'mz') || countries[0]
   );
   const [telefone, setTelefone] = useState('');
 
-  // Estado do Modal de Países
   const [modalPaisAberto, setModalPaisAberto] = useState(false);
   const [pesquisaPais, setPesquisaPais] = useState('');
 
@@ -55,7 +52,7 @@ export default function RegistoPage() {
 
     const telefoneCompleto = `${paisSelecionado.code} ${telefone}`;
 
-    // 🆕 VERIFICAÇÃO DA LISTA NEGRA (BLOCKED USERS)
+    // VERIFICAÇÃO DA LISTA NEGRA (BLOCKED USERS)
     const { data: blocked, error: blockError } = await supabase
       .from('blocked_users')
       .select('*')
@@ -64,7 +61,6 @@ export default function RegistoPage() {
 
     if (blockError) {
       console.error('Erro ao verificar bloqueio:', blockError);
-      // Se houver erro na verificação, podemos continuar ou parar. Vamos continuar por segurança.
     }
 
     if (blocked) {
@@ -82,6 +78,7 @@ export default function RegistoPage() {
 
     const saldoInicialUSD = converterParaUSD(10, moedaEscolhida);
 
+    // CRIA A CONTA
     const { data, error } = await supabase.auth.signUp({
       email, 
       password,
@@ -104,9 +101,31 @@ export default function RegistoPage() {
       setLoading(false); 
       return; 
     }
+
+    // 🆕 ENVIA O EMAIL DE BOAS VINDAS AGORA QUE A CONTA JÁ EXISTE
+    if (data.user) {
+      fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: email,
+          subject: 'Bem-vindo ao Konnex Numbers! 🚀',
+          html: `
+            <div style="font-family: sans-serif; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+              <h2 style="color: #7c3aed;">Olá, ${nome}!</h2>
+              <p>A sua conta no <strong>Konnex Numbers</strong> foi criada com sucesso.</p>
+              <p>Já pode fazer login e começar a comprar números virtuais para WhatsApp, Telegram e muito mais.</p>
+              <br/>
+              <a href="https://konnex-numbers.vercel.app/login" style="background: #7c3aed; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Entrar no Konnex</a>
+              <p style="margin-top: 20px; font-size: 12px; color: #888;">Se não foi você que criou esta conta, ignore este email.</p>
+            </div>
+          `
+        })
+      }).catch(err => console.error('Erro ao enviar email:', err));
+    }
     
     if (data.user && data.session === null) {
-      toast.success('Conta criada! Verifique o seu e-mail.', { id: toastId });
+      toast.success('Conta criada! Verifique o seu e-mail para confirmar.', { id: toastId });
       setLoading(false); 
       return;
     }
@@ -121,7 +140,6 @@ export default function RegistoPage() {
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 font-sans py-10">
       <div className="max-w-md w-full bg-slate-900 p-8 rounded-2xl shadow-2xl border border-slate-800">
         
-        {/* CABEÇALHO */}
         <div className="text-center mb-8 flex flex-col items-center">
           <div className="relative flex justify-center mb-4">
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-violet-600 rounded-full blur-3xl brilho-pulsante"></div>
@@ -198,7 +216,6 @@ export default function RegistoPage() {
         </div>
       </div>
 
-      {/* MODAL DE SELEÇÃO DE PAÍS */}
       {modalPaisAberto && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[100] backdrop-blur-sm">
           <div className="bg-white w-full max-w-md rounded-2xl flex flex-col max-h-[80vh] overflow-hidden shadow-2xl">
@@ -213,22 +230,18 @@ export default function RegistoPage() {
               </div>
             </div>
             <div className="flex-1 overflow-y-auto p-2">
-              {paisesFiltrados.length > 0 ? (
-                paisesFiltrados.map((pais) => (
-                  <button key={pais.id} onClick={() => handleSelecionarPais(pais)} className="w-full flex items-center justify-between p-3 hover:bg-gray-100 rounded-lg transition-colors text-left">
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">{pais.flag}</span>
-                      <span className="font-medium text-gray-800">{pais.name}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-500 font-mono">{pais.code}</span>
-                      {paisSelecionado.id === pais.id && <span className="text-cyan-600 font-bold">✓</span>}
-                    </div>
-                  </button>
-                ))
-              ) : (
-                <div className="p-4 text-center text-gray-500">Nenhum país encontrado.</div>
-              )}
+              {paisesFiltrados.map((pais) => (
+                <button key={pais.id} onClick={() => handleSelecionarPais(pais)} className="w-full flex items-center justify-between p-3 hover:bg-gray-100 rounded-lg transition-colors text-left">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">{pais.flag}</span>
+                    <span className="font-medium text-gray-800">{pais.name}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-500 font-mono">{pais.code}</span>
+                    {paisSelecionado.id === pais.id && <span className="text-cyan-600 font-bold">✓</span>}
+                  </div>
+                </button>
+              ))}
             </div>
           </div>
         </div>
