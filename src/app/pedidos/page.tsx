@@ -7,7 +7,7 @@ import { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { Order, OrderStatus, SmsStatus } from '@/types';
 import { toast } from 'sonner';
-import Link from 'next/link'; // 🆕 Import do Link
+import Link from 'next/link';
 
 interface PedidoSupabase {
   id: string;
@@ -68,7 +68,7 @@ export default function MeusPedidosPage() {
             if (pedidoAtualizado.sms_otp === 'Sucesso') {
               toast.success(`SMS Recebido para ${pedidoAtualizado.numero}!`);
               
-              // 🆕 Enviar email quando o SMS chegar
+              // Enviar email quando o SMS chegar
               if (session.user.email) {
                 fetch('/api/send-email', {
                   method: 'POST',
@@ -77,11 +77,13 @@ export default function MeusPedidosPage() {
                     to: session.user.email,
                     subject: `O seu código SMS chegou! 📩`,
                     html: `
-                      <div style="font-family: sans-serif; color: #333;">
-                        <h2>O seu código chegou!</h2>
+                      <div style="font-family: sans-serif; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+                        <h2 style="color: #7c3aed;">O seu código chegou!</h2>
                         <p>O código para o serviço <strong>${pedidoAtualizado.servico}</strong> é:</p>
-                        <h1 style="color: #7c3aed; letter-spacing: 5px; font-size: 32px;">${pedidoAtualizado.codigo_recebido}</h1>
+                        <h1 style="color: #7c3aed; letter-spacing: 5px; font-size: 32px; text-align: center; background: #f3f4f6; padding: 15px; border-radius: 8px;">${pedidoAtualizado.codigo_recebido}</h1>
                         <p>Já pode usar este código no aplicativo.</p>
+                        <br/>
+                        <a href="https://konnex-numbers.vercel.app/pedidos" style="background: #7c3aed; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Ver no Konnex</a>
                       </div>
                     `
                   })
@@ -89,8 +91,18 @@ export default function MeusPedidosPage() {
               }
             }
 
+            // 🆕 Corrigido para satisfazer o TypeScript (converte null para undefined)
             setPedidos((prev) =>
-              prev.map((p) => p.id === pedidoAtualizado.id ? { ...p, ...pedidoAtualizado } : p)
+              prev.map((p) =>
+                p.id === pedidoAtualizado.id
+                  ? {
+                      ...p,
+                      status: pedidoAtualizado.status,
+                      sms_otp: pedidoAtualizado.sms_otp,
+                      codigo_recebido: pedidoAtualizado.codigo_recebido || undefined, 
+                    }
+                  : p
+              )
             );
           }
         ).subscribe();
@@ -118,7 +130,7 @@ export default function MeusPedidosPage() {
   }, [router]);
 
   return (
-    <div className="p-4 max-w-4xl mx-auto min-h-screen bg-[#0f172a] text-white">
+    <div className="p-4 max-w-4xl mx-auto min-h-screen bg-[#0f172a] text-white pb-24">
       <header className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Meus Pedidos</h1>
@@ -152,7 +164,7 @@ export default function MeusPedidosPage() {
                   </p>
                 </div>
                 
-                {/* 🆕 Botão para a página de detalhes */}
+                {/* Botão para a página de detalhes */}
                 <Link href={`/pedidos/${pedido.id}`} className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-lg text-sm transition-colors">
                   Ver Detalhes
                 </Link>
