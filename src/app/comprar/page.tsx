@@ -6,13 +6,45 @@ import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import { getPrice } from '@/data/pricesByCountry';
+import { getCountry } from '@/data/countries';
 
 export default function ComprarNumeroPage() {
   const router = useRouter();
   
   const [loading, setLoading] = useState(false);
   const [servico, setServico] = useState('WhatsApp');
-  const [pais, setPais] = useState('Moçambique'); // Usar o nome do país para a API
+  const [paisNome, setPaisNome] = useState('Moçambique'); 
+  
+  // 🆕 Estados para os preços reais
+  const [precoAtual, setPrecoAtual] = useState(3.20);
+  
+  // Mapeamento de países do formulário para os IDs do sistema
+  const mapaPaises: Record<string, string> = {
+    'Moçambique': 'mz',
+    'Brasil': 'br',
+    'Portugal': 'pt',
+    'África do Sul': 'za',
+    'Estados Unidos': 'us',
+    'Holanda': 'nl'
+  };
+
+  // 🆕 Atualiza o preço sempre que o serviço ou o país muda
+  useEffect(() => {
+    const paisId = mapaPaises[paisNome] || 'mz';
+    
+    // O 'servico' no select tem de corresponder ao ID do ficheiro services.ts
+    let servicoId = servico.toLowerCase().replace(' ', '');
+    if (servico === 'Instagram') servicoId = 'instagram';
+    if (servico === 'WhatsApp') servicoId = 'whatsapp';
+    if (servico === 'Telegram') servicoId = 'telegram';
+    if (servico === 'Facebook') servicoId = 'facebook';
+
+    const precoInfo = getPrice(servicoId, paisId, 'random');
+    if (precoInfo) {
+      setPrecoAtual(precoInfo.price || 2.50);
+    }
+  }, [servico, paisNome]);
 
   // Verificar sessão ao entrar
   useEffect(() => {
@@ -33,7 +65,14 @@ export default function ComprarNumeroPage() {
         return;
       }
 
-      // 1. Verificar saldo antes de comprar
+      // 🆕 1. Verificar se o e-mail está confirmado (segurança extra)
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.email_confirmed_at) {
+        toast.error('Por favor, confirme o seu e-mail antes de comprar.');
+        return;
+      }
+
+      // 2. Verificar saldo antes de comprar
       const { data: profile } = await supabase
         .from('profiles')
         .select('saldo')
@@ -41,25 +80,22 @@ export default function ComprarNumeroPage() {
         .single();
 
       const saldoEmUSD = parseFloat(profile?.saldo) || 0;
-      
-      // Preço fictício para este exemplo (podes ajustar conforme a tua tabela de preços)
-      const precoEmUSD = servico === 'WhatsApp' ? 3.20 : 2.50;
 
-      if (saldoEmUSD < precoEmUSD) {
-        toast.error('Saldo insuficiente. Por favor, deposite primeiro.');
+      if (saldoEmUSD < precoAtual) {
+        toast.error(`Saldo insuficiente. Precisa de $${precoAtual.toFixed(2)}.`);
         router.push('/saldo');
         return;
       }
 
-      // 2. Chamar a TUA API de compra real
+      // 3. Chamar a TUA API de compra real
       const resposta = await fetch('/api/comprar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: session.user.id,
           servico: servico,
-          pais: pais,
-          preco: precoEmUSD,
+          pais: paisNome,
+          preco: precoAtual,
           isCustom: false // Número normal
         }),
       });
@@ -70,7 +106,7 @@ export default function ComprarNumeroPage() {
         throw new Error(dados.error);
       }
 
-      // 3. Sucesso! Redirecionar para a página de detalhes do pedido
+      // 4. Sucesso! Redirecionar para a página de detalhes do pedido
       toast.success('Número comprado com sucesso!');
       router.push(`/pedidos/${dados.pedido.id}`);
 
@@ -86,7 +122,7 @@ export default function ComprarNumeroPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0f172a] p-6 flex flex-col items-center font-sans text-white">
+    <div className="min-h-screen bg-[#0f172a] p-6 flex flex-col items-center font-sans text-white pb-24">
       
       <div className="w-full max-w-md bg-slate-800 rounded-xl shadow-lg p-6 mt-10 border border-slate-700">
         <h1 className="text-2xl font-bold mb-6 text-center">Comprar Número</h1>
@@ -99,18 +135,18 @@ export default function ComprarNumeroPage() {
               onChange={(e) => setServico(e.target.value)}
               className="w-full p-3 bg-slate-900 border border-slate-700 rounded-lg text-white outline-none focus:border-cyan-500"
             >
-              <option value="WhatsApp">WhatsApp ($ 3.20)</option>
-              <option value="Telegram">Telegram ($ 2.50)</option>
-              <option value="Instagram">Instagram ($ 2.50)</option>
-              <option value="Facebook">Facebook ($ 2.50)</option>
+              <option value="WhatsApp">WhatsApp</option>
+              <option value="Telegram">Telegram</option>
+              <option value="Instagram">Instagram</option>
+              <option value="Facebook">Facebook</option>
             </select>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-slate-400 mb-1">País</label>
             <select 
-              value={pais} 
-              onChange={(e) => setPais(e.target.value)}
+              value={paisNome} 
+              onChange={(e) => setPaisNome(e.target.value)}
               className="w-full p-3 bg-slate-900 border border-slate-700 rounded-lg text-white outline-none focus:border-cyan-500"
             >
               <option value="Moçambique">Moçambique 🇲🇿</option>
@@ -119,6 +155,12 @@ export default function ComprarNumeroPage() {
               <option value="África do Sul">África do Sul 🇿🇦</option>
               <option value="Estados Unidos">Estados Unidos 🇺🇸</option>
             </select>
+          </div>
+
+          {/* 🆕 Mostra o preço calculado dinamicamente */}
+          <div className="bg-slate-900 rounded-lg p-4 flex justify-between items-center border border-slate-700">
+            <span className="text-slate-400 text-sm">Custo do número:</span>
+            <span className="text-yellow-400 font-bold text-xl">$ {precoAtual.toFixed(2)}</span>
           </div>
 
           <button
