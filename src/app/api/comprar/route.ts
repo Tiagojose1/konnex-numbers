@@ -107,11 +107,10 @@ export async function POST(request: Request) {
         throw new Error('Nenhum fornecedor de SMS configurado.');
       }
 
-    } catch (error: unknown) { // 🆕 Substituído 'any' por 'unknown'
+    } catch (error: unknown) {
       // Devolve o dinheiro ao utilizador
       await supabaseAdmin.from('profiles').update({ saldo: saldoAtual }).eq('id', userId);
       
-      // 🆕 Verificação segura do tipo de erro
       const mensagemErro = error instanceof Error ? error.message : String(error);
       return NextResponse.json({ error: `Erro no fornecedor: ${mensagemErro}` }, { status: 500 });
     }
@@ -127,15 +126,19 @@ export async function POST(request: Request) {
         pais: pais,
         servico: servico,
         valor: valorCompra,
-        is_custom: isCustom,
+        is_custom: isCustom || false, // Garante que é boolean
         provider_order_id: idFornecedor,
         provider_name: fornecedorUsado
       })
       .select().single();
 
+    // 🆕 CORREÇÃO CRÍTICA: Mostrar o erro real do Supabase
     if (pedidoError) {
+      console.error('ERRO AO GUARDAR PEDIDO:', pedidoError); // Isto vai aparecer nos logs da Vercel
       await supabaseAdmin.from('profiles').update({ saldo: saldoAtual }).eq('id', userId);
-      return NextResponse.json({ error: 'Erro ao guardar pedido.' }, { status: 500 });
+      return NextResponse.json({ 
+        error: `Erro ao guardar pedido: ${pedidoError.message}` // 🆕 Mostra o erro real ao utilizador
+      }, { status: 500 });
     }
 
     // 6. Registar Transação
@@ -150,7 +153,7 @@ export async function POST(request: Request) {
       novoSaldo: novoSaldo 
     });
 
-  } catch (error: unknown) { // 🆕 Substituído 'any' no catch principal também
+  } catch (error: unknown) {
     console.error(error);
     const mensagemErro = error instanceof Error ? error.message : 'Erro interno do servidor.';
     return NextResponse.json({ error: mensagemErro }, { status: 500 });
