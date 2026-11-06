@@ -1,19 +1,20 @@
+/* eslint-disable @next/next/no-img-element */
 // src/app/pedidos/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
-import { Order, OrderStatus, SmsStatus } from '@/types';
 import { toast } from 'sonner';
-import Link from 'next/link';
+import { formatarMoeda } from '@/lib/currencies'; // 🆕 Importar formatação de moeda
 
 interface PedidoSupabase {
   id: string;
   numero: string;
-  status: OrderStatus;
-  sms_otp: SmsStatus;
+  status: string;
+  sms_otp: string;
   codigo_recebido: string | null;
   pais: string;
   servico: string;
@@ -25,7 +26,8 @@ interface PedidoSupabase {
 export default function MeusPedidosPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [pedidos, setPedidos] = useState<Order[]>([]);
+  const [pedidos, setPedidos] = useState<PedidoSupabase[]>([]);
+  const [currency, setCurrency] = useState('MZN'); // Moeda do utilizador
 
   useEffect(() => {
     let canal: RealtimeChannel | null = null;
@@ -37,12 +39,18 @@ export default function MeusPedidosPage() {
         return;
       }
 
+      // Vai buscar a moeda do utilizador
+      const { data: profile } = await supabase.from('profiles').select('currency').eq('id', session.user.id).single();
+      if (profile?.currency) setCurrency(profile.currency);
+
+      // Verificar pedidos expirados
       await fetch('/api/verificar-expirados', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: session.user.id }),
       });
 
+      // Buscar pedidos
       const { data, error } = await supabase
         .from('orders')
         .select('*')
@@ -52,11 +60,11 @@ export default function MeusPedidosPage() {
       if (error) {
         console.error('Erro ao buscar pedidos:', error);
       } else if (data) {
-        setPedidos(data as Order[]);
+        setPedidos(data);
       }
       setLoading(false);
 
-      // Ligar o Tempo Real
+      // 🆕 TEMPO REAL: Atualiza a tabela sem precisar de F5
       canal = supabase
         .channel('alteracoes-pedidos')
         .on(
@@ -67,59 +75,24 @@ export default function MeusPedidosPage() {
             
             if (pedidoAtualizado.sms_otp === 'Sucesso') {
               toast.success(`SMS Recebido para ${pedidoAtualizado.numero}!`);
-              
-              // Enviar email quando o SMS chegar
-              if (session.user.email) {
-                fetch('/api/send-email', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    to: session.user.email,
-                    subject: `O seu código SMS chegou! 📩`,
-                    html: `
-                      <div style="font-family: sans-serif; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-                        <h2 style="color: #7c3aed;">O seu código chegou!</h2>
-                        <p>O código para o serviço <strong>${pedidoAtualizado.servico}</strong> é:</p>
-                        <h1 style="color: #7c3aed; letter-spacing: 5px; font-size: 32px; text-align: center; background: #f3f4f6; padding: 15px; border-radius: 8px;">${pedidoAtualizado.codigo_recebido}</h1>
-                        <p>Já pode usar este código no aplicativo.</p>
-                        <br/>
-                        <a href="https://konnex-numbers.vercel.app/pedidos" style="background: #7c3aed; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Ver no Konnex</a>
-                      </div>
-                    `
-                  })
-                }).catch(err => console.error('Erro email:', err));
-              }
             }
 
-            // 🆕 Corrigido para satisfazer o TypeScript (converte null para undefined)
-            setPedidos((prev) =>
-              prev.map((p) =>
-                p.id === pedidoAtualizado.id
-                  ? {
-                      ...p,
-                      status: pedidoAtualizado.status,
-                      sms_otp: pedidoAtualizado.sms_otp,
-                      codigo_recebido: pedidoAtualizado.codigo_recebido || undefined, 
-                    }
-                  : p
-              )
-            );
+            setPedidos((prev) => prev.map((p) => p.id === pedidoAtualizado.id ? pedidoAtualizado : p));
           }
         ).subscribe();
     };
 
     carregarPedidos();
 
+    // Verifica expirados a cada 60 segundos
     const intervalo = setInterval(async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        const resposta = await fetch('/api/verificar-expirados', {
+        await fetch('/api/verificar-expirados', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId: session.user.id }),
         });
-        const dados = await resposta.json();
-        if (dados.reembolsados > 0) toast.warning(`${dados.reembolsados} pedido(s) expiraram.`);
       }
     }, 60000);
 
@@ -129,60 +102,157 @@ export default function MeusPedidosPage() {
     };
   }, [router]);
 
+  // 🆕 Loop para verificar se o SMS chegou na 5SIM a cada 5 segundos
+  useEffect(() => {
+    const verificarSmsPendentes = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const pendentes = pedidos.filter(p => p.status === 'Aguardando' && p.provider_name);
+      
+      for (const pedido of pendentes) {
+        try {
+          await fetch('/api/verificar-sms', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pedidoId: pedido.id, userId: session.user.id }),
+          });
+        } catch (err) {
+          console.error('A verificar SMS:', err);
+        }
+      }
+    };
+
+    const intervaloSms = setInterval(() => {
+      if (pedidos.some(p => p.status === 'Aguardando' && p.provider_name)) {
+        verificarSmsPendentes();
+      }
+    }, 5000);
+
+    return () => clearInterval(intervaloSms);
+  }, [pedidos]);
+
+  const copiarCodigo = (codigo: string) => {
+    navigator.clipboard.writeText(codigo);
+    toast.success('Código copiado!');
+  };
+
   return (
-    <div className="p-4 max-w-4xl mx-auto min-h-screen bg-[#0f172a] text-white pb-24">
-      <header className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Meus Pedidos</h1>
-          <p className="text-slate-400 text-sm">Acompanhe os seus números virtuais.</p>
-        </div>
-        <Link href="/dashboard" className="text-slate-400 hover:text-white text-2xl">&times;</Link>
-      </header>
+    <div className="min-h-screen bg-[#0f172a] p-4 text-white pb-24 font-sans">
+      
+      {/* CABEÇALHO AZUL COMO NA IMAGEM */}
+      <div className="max-w-6xl mx-auto bg-[#0284c7] rounded-t-xl p-4">
+        <h1 className="text-xl font-bold">Meus Pedidos</h1>
+      </div>
 
-      {loading ? (
-        <div className="text-center py-12 text-slate-400 animate-pulse">A carregar...</div>
-      ) : pedidos.length > 0 ? (
-        <div className="space-y-4">
-          {pedidos.map((pedido) => (
-            <div key={pedido.id} className="bg-slate-800 rounded-2xl p-4 border border-slate-700 shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-slate-900 rounded-full flex items-center justify-center text-xl">
-                  {pedido.status === 'Concluído' ? '✅' : pedido.status === 'Cancelado' ? '❌' : '⏳'}
-                </div>
-                <div>
-                  <h3 className="font-bold text-lg">{pedido.servico}</h3>
-                  <p className="text-slate-400 text-sm">{pedido.numero} ({pedido.pais})</p>
-                </div>
-              </div>
+      {/* CONTAINER DA TABELA */}
+      <div className="max-w-6xl mx-auto bg-white rounded-b-xl shadow-lg overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse text-slate-800 text-sm">
+            <thead>
+              <tr className="bg-slate-100 text-slate-600 font-bold uppercase text-xs">
+                <th className="p-4 border-b">Número</th>
+                <th className="p-4 border-b">Status</th>
+                <th className="p-4 border-b">SMS</th>
+                <th className="p-4 border-b text-center">Ação</th>
+                <th className="p-4 border-b text-center">País</th>
+                <th className="p-4 border-b text-center">Serviço</th>
+                <th className="p-4 border-b">Valor</th>
+                <th className="p-4 border-b">Data</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200">
+              {loading ? (
+                <tr><td colSpan={8} className="p-8 text-center text-slate-500">A carregar...</td></tr>
+              ) : pedidos.length === 0 ? (
+                <tr><td colSpan={8} className="p-8 text-center text-slate-500">Nenhum pedido encontrado.</td></tr>
+              ) : (
+                pedidos.map((pedido) => {
+                  // Pega a bandeira e o ícone usando os nomes dos ficheiros (como na imagem)
+                  const bandeiraPais = pedido.pais === 'Moçambique' ? '🇲🇿' : pedido.pais === 'Brasil' ? '🇧🇷' : pedido.pais === 'Portugal' ? '🇵🇹' : '🌍';
+                  
+                  return (
+                    <tr key={pedido.id} className="hover:bg-slate-50 transition-colors">
+                      {/* Número */}
+                      <td className="p-4 font-mono text-slate-700">{pedido.numero}</td>
+                      
+                      {/* Status */}
+                      <td className="p-4">
+                        <span className={`font-medium ${pedido.status === 'Cancelado' ? 'text-red-500' : pedido.status === 'Concluído' ? 'text-green-600' : 'text-slate-600'}`}>
+                          {pedido.status}
+                        </span>
+                      </td>
 
-              <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end">
-                <div className="text-right">
-                  <p className="text-xs text-slate-500 uppercase font-bold">Status</p>
-                  <p className={`text-sm font-bold ${pedido.status === 'Concluído' ? 'text-green-400' : pedido.status === 'Cancelado' ? 'text-red-400' : 'text-yellow-400'}`}>
-                    {pedido.status}
-                  </p>
-                </div>
-                
-                {/* Botão para a página de detalhes */}
-                <Link href={`/pedidos/${pedido.id}`} className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-lg text-sm transition-colors">
-                  Ver Detalhes
-                </Link>
-              </div>
+                      {/* SMS (Código) */}
+                      <td className="p-4">
+                        {pedido.sms_otp === 'Sucesso' && pedido.codigo_recebido ? (
+                          <span className="font-mono font-bold text-lg text-green-600 bg-green-50 px-2 py-1 rounded">
+                            {pedido.codigo_recebido}
+                          </span>
+                        ) : pedido.status === 'Cancelado' ? (
+                          <span className="text-red-400 text-sm">Cancelado</span>
+                        ) : (
+                          <span className="text-yellow-500 text-sm animate-pulse">A aguardar...</span>
+                        )}
+                      </td>
 
-            </div>
-          ))}
+                      {/* Ação (Botão Copiar) */}
+                      <td className="p-4 text-center">
+                        {pedido.sms_otp === 'Sucesso' && pedido.codigo_recebido ? (
+                          <button 
+                            onClick={() => copiarCodigo(pedido.codigo_recebido!)}
+                            className="bg-slate-200 hover:bg-slate-300 text-slate-700 p-2 rounded-lg transition-colors"
+                            title="Copiar Código"
+                          >
+                            📋
+                          </button>
+                        ) : (
+                          <span className="text-slate-300">-</span>
+                        )}
+                      </td>
+
+                      {/* País */}
+                      <td className="p-4 text-center text-2xl" title={pedido.pais}>
+                        {bandeiraPais}
+                      </td>
+
+                      {/* Serviço (Ícone) */}
+                      <td className="p-4 text-center">
+                        {pedido.servico === 'WhatsApp' ? (
+                          <span className="text-2xl" title="WhatsApp">🟢</span>
+                        ) : pedido.servico === 'Telegram' ? (
+                          <span className="text-2xl" title="Telegram">✈️</span>
+                        ) : pedido.servico === 'Instagram' ? (
+                          <span className="text-2xl" title="Instagram">🟣</span>
+                        ) : (
+                          <span className="text-xl" title={pedido.servico}>📱</span>
+                        )}
+                      </td>
+
+                      {/* Valor */}
+                      <td className="p-4 font-medium">
+                        {formatarMoeda(pedido.valor, currency)}
+                      </td>
+
+                      {/* Data */}
+                      <td className="p-4 text-slate-500 text-xs">
+                        {new Date(pedido.data_criacao).toLocaleString('pt-PT')}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
         </div>
-      ) : (
-        <div className="bg-slate-800 p-12 rounded-2xl border border-slate-700 text-center mt-8">
-          <p className="text-4xl mb-4">📭</p>
-          <h3 className="text-lg font-bold mb-2">Ainda não tem pedidos</h3>
-          <p className="text-slate-400 mb-6">Assim que comprar o seu primeiro número, ele aparecerá aqui.</p>
-          <Link href="/servicos" className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg transition-colors shadow-md inline-block">
-            Obter Número Agora
-          </Link>
-        </div>
-      )}
+      </div>
+
+      <div className="max-w-6xl mx-auto mt-6 text-center">
+        <Link href="/servicos" className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-8 rounded-xl transition-colors inline-block">
+          Comprar Novo Número
+        </Link>
+      </div>
+
     </div>
   );
 }
