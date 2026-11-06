@@ -22,7 +22,7 @@ export default function PerfilPage() {
   const [telefone, setTelefone] = useState('');
   const [saldo, setSaldo] = useState(0);
   const [currency, setCurrency] = useState('MZN');
-  const [userId, setUserId] = useState(''); // 🆕 ID real do utilizador
+  const [userCode, setUserCode] = useState(''); // 🆕 ID Público (k123456)
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   
   // Novos Dados Pessoais
@@ -43,7 +43,6 @@ export default function PerfilPage() {
       }
 
       setEmail(session.user.email || '');
-      setUserId(session.user.id); // 🆕 Guarda o ID real
 
       const { data: profile } = await supabase
         .from('profiles')
@@ -53,10 +52,11 @@ export default function PerfilPage() {
 
       if (profile) {
         setNome(profile.nome_completo || '');
-        setTelefone(profile.telefone || 'Não definido'); // 🆕 Fallback
+        setTelefone(profile.telefone || 'Não definido');
         setCurrency(profile.currency || 'MZN');
         setSaldo(parseFloat(profile.saldo) || 0);
         setAvatarUrl(profile.avatar_url || null);
+        setUserCode(profile.user_code || 'Gerando...'); // 🆕 Lê o ID Público
         
         setDataNascimento(profile.data_nascimento || '');
         setPaisResidencia(profile.pais_residencia || 'Moçambique');
@@ -98,25 +98,31 @@ export default function PerfilPage() {
     }
   };
 
+  // 🆕 Função de atualizar corrigida e com validação
   const handleAtualizarPerfil = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
 
     const toastId = toast.loading('A atualizar o perfil...');
 
+    // Trata os valores nulos para o Supabase não rejeitar
+    const telParaGuardar = (telefone === 'Não definido' || telefone.trim() === '') ? null : telefone;
+    const dataParaGuardar = dataNascimento.trim() === '' ? null : dataNascimento;
+
     const { error: errorDados } = await supabase
       .from('profiles')
       .update({ 
         nome_completo: nome, 
-        telefone: telefone === 'Não definido' ? null : telefone,
-        data_nascimento: dataNascimento || null,
+        telefone: telParaGuardar,
+        data_nascimento: dataParaGuardar,
         pais_residencia: paisResidencia,
-        genero: genero
+        genero: genero || null
       })
       .eq('id', session.user.id);
 
     if (errorDados) {
-      toast.error('Erro ao guardar os dados.', { id: toastId });
+      console.error("Erro Supabase:", errorDados);
+      toast.error(`Erro ao guardar: ${errorDados.message}`, { id: toastId });
       return;
     }
 
@@ -195,9 +201,9 @@ export default function PerfilPage() {
                 <p className="text-slate-400 text-sm mt-1">
                   📞 {telefone === 'Não definido' ? 'Número não registado' : telefone}
                 </p>
-                {/* 🆕 Mostra o ID Real (UUID curto) em vez da variável vazia */}
+                {/* 🆕 Mostra o ID Público (k123456) */}
                 <p className="text-slate-500 text-xs font-mono mt-1">
-                  ID: {userId ? userId.split('-')[0].toUpperCase() : '---'}
+                  ID: {userCode}
                 </p>
               </div>
             </div>
@@ -258,6 +264,7 @@ export default function PerfilPage() {
                   <div>
                     <label className="block text-xs font-bold text-yellow-400 uppercase mb-2">Género</label>
                     <select value={genero} onChange={(e) => setGenero(e.target.value)} className="w-full p-3 bg-[#0f172a] text-white border border-slate-600 rounded-lg outline-none focus:border-yellow-400">
+                      <option value="" disabled>Selecione</option>
                       <option value="Masculino">Masculino</option>
                       <option value="Feminino">Feminino</option>
                       <option value="Outro">Outro</option>
