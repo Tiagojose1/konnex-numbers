@@ -31,8 +31,11 @@ export async function POST(request: Request) {
 
     await supabaseAdmin.from('profiles').update({ saldo: novoSaldo }).eq('id', userId);
 
-    // 3. Marcar pedido como Cancelado
-    await supabaseAdmin.from('orders').update({ status: 'Cancelado' }).eq('id', pedidoId);
+    // 3. Marcar pedido como Cancelado E atualizar a coluna SMS (para a tabela mostrar "Cancelado")
+    await supabaseAdmin.from('orders').update({ 
+      status: 'Cancelado',
+      sms_otp: 'Cancelado' // 🆕 Isto faz a coluna SMS mostrar "Cancelado"
+    }).eq('id', pedidoId);
 
     return NextResponse.json({ success: true, mensagem: 'Pedido cancelado e valor reembolsado!' });
   } catch (error: any) {

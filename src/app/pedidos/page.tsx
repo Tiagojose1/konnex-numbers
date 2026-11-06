@@ -57,7 +57,6 @@ export default function MeusPedidosPage() {
       if (!error && data) setPedidos(data);
       setLoading(false);
 
-      // TEMPO REAL
       canal = supabase
         .channel('alteracoes-pedidos')
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders', filter: `user_id=eq.${session.user.id}` },
@@ -73,7 +72,6 @@ export default function MeusPedidosPage() {
 
     carregarPedidos();
 
-    // Verifica SMS na 5SIM a cada 5 segundos
     const intervaloSms = setInterval(async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
@@ -94,14 +92,36 @@ export default function MeusPedidosPage() {
     toast.success('Código copiado!');
   };
 
-  // Função para devolver o ícone correto do serviço (usando CDN)
+  // 🆕 Função para Cancelar o Pedido
+  const cancelarPedido = async (pedidoId: string) => {
+    if (!window.confirm('Deseja cancelar este pedido e receber o reembolso?')) return;
+    
+    toast.loading('A cancelar...', { id: 'cancelar' });
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+
+    const res = await fetch('/api/cancelar-pedido', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pedidoId, userId: session.user.id })
+    });
+
+    const dados = await res.json();
+    if (dados.error) {
+      toast.error(dados.error, { id: 'cancelar' });
+    } else {
+      toast.success(dados.mensagem, { id: 'cancelar' });
+      // A atualização visual vem automaticamente via Realtime
+    }
+  };
+
   const getServiceIcon = (servico: string) => {
     const s = servico.toLowerCase();
     if (s.includes('whatsapp')) return 'whatsapp';
     if (s.includes('telegram')) return 'telegram';
     if (s.includes('instagram')) return 'instagram';
     if (s.includes('facebook')) return 'facebook';
-    return 'google';
+    return 'google'; 
   };
 
   return (
@@ -109,7 +129,6 @@ export default function MeusPedidosPage() {
       
       <div className="max-w-6xl mx-auto">
         
-        {/* CABEÇALHO AZUL COM BOTÃO NO CANTO DIREITO */}
         <div className="bg-[#1e40af] rounded-t-xl p-4 flex justify-between items-center">
           <h1 className="text-xl font-bold">Meus Pedidos</h1>
           <Link href="/servicos" className="bg-white text-[#1e40af] hover:bg-gray-100 font-bold py-1.5 px-4 rounded-lg text-sm transition-colors">
@@ -117,7 +136,6 @@ export default function MeusPedidosPage() {
           </Link>
         </div>
 
-        {/* TABELA */}
         <div className="bg-white rounded-b-xl shadow-lg overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-slate-800 text-sm">
@@ -141,59 +159,61 @@ export default function MeusPedidosPage() {
                 ) : (
                   pedidos.map((pedido) => {
                     
-                    // Lógica de Cores do Status e Texto
-                    let statusColor = 'text-yellow-500'; 
-                    let statusText = pedido.status;
-                    if (pedido.status === 'Concluído' || pedido.sms_otp === 'Sucesso') {
-                      statusColor = 'text-green-600';
-                      statusText = 'Concluído';
-                    } else if (pedido.status === 'Cancelado' || pedido.status === 'Expirado') {
-                      statusColor = 'text-red-500';
-                    }
+                    const isSucesso = pedido.sms_otp === 'Sucesso' || pedido.status === 'Concluído';
+                    const isExpirado = pedido.status === 'Expirado';
+                    const isCancelado = pedido.status === 'Cancelado';
+                    const isAguardando = pedido.status === 'Aguardando';
 
-                    const isCancelado = pedido.status === 'Cancelado' || pedido.status === 'Expirado';
-                    
-                    // Lógica da Coluna SMS
-                    const smsText = pedido.codigo_recebido 
-                      ? pedido.codigo_recebido 
-                      : isCancelado 
-                        ? pedido.status 
-                        : 'A aguardar...';
+                    // Cores dos Status
+                    let statusColor = 'text-yellow-500 bg-yellow-50'; // Aguardando
+                    let statusText = 'Aguardando';
+                    if (isSucesso) { statusColor = 'text-green-600 bg-green-50'; statusText = 'Concluído'; }
+                    if (isExpirado) { statusColor = 'text-gray-600 bg-gray-100'; statusText = 'Expirado'; }
+                    if (isCancelado) { statusColor = 'text-red-600 bg-red-50'; statusText = 'Cancelado'; }
 
                     return (
                       <tr key={pedido.id} className="hover:bg-slate-50 transition-colors">
                         <td className="p-4 font-mono text-slate-700">{pedido.numero}</td>
                         
                         <td className="p-4">
-                          <span className={`font-bold ${statusColor}`}>
+                          <span className={`px-2 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${statusColor}`}>
                             {statusText}
                           </span>
                         </td>
 
+                        {/* Lógica SMS e Ação */}
                         <td className="p-4">
-                          <span className={`font-mono font-bold ${pedido.codigo_recebido ? 'text-green-600 text-lg' : isCancelado ? 'text-red-400 text-sm' : 'text-yellow-500 animate-pulse text-sm'}`}>
-                            {smsText}
-                          </span>
+                          {isSucesso ? (
+                            <span className="font-mono font-bold text-lg text-green-600 bg-green-50 px-2 py-1 rounded">
+                              {pedido.codigo_recebido}
+                            </span>
+                          ) : isExpirado ? (
+                            <span className="text-gray-500 text-xs">Sem sucesso</span>
+                          ) : isCancelado ? (
+                            <span className="text-red-400 text-xs">Cancelado</span>
+                          ) : (
+                            <span className="text-yellow-500 text-xs animate-pulse">A aguardar...</span>
+                          )}
                         </td>
 
-                        {/* Coluna de Ação */}
                         <td className="p-4 text-center">
-                          {pedido.codigo_recebido ? (
-                            <button onClick={() => copiarCodigo(pedido.codigo_recebido!)} className="bg-slate-200 hover:bg-slate-300 text-slate-700 p-2 rounded-lg transition-colors" title="Copiar Código">
-                              📋
+                          {isSucesso ? (
+                            <button onClick={() => copiarCodigo(pedido.codigo_recebido!)} className="bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold py-1.5 px-3 rounded transition-colors">
+                              Copiar
                             </button>
-                          ) : isCancelado ? (
+                          ) : isExpirado || isCancelado ? (
                             <span className="text-[10px] text-green-600 font-bold bg-green-50 px-2 py-1 rounded">Reembolsado</span>
-                          ) : (
-                            <span className="text-slate-300">-</span>
-                          )}
+                          ) : isAguardando ? (
+                            <button onClick={() => cancelarPedido(pedido.id)} className="bg-red-100 hover:bg-red-200 text-red-600 text-xs font-bold py-1.5 px-3 rounded transition-colors">
+                              Cancelar
+                            </button>
+                          ) : null}
                         </td>
 
                         <td className="p-4 text-center text-2xl" title={pedido.pais}>
                           {pedido.pais === 'Moçambique' ? '🇲🇿' : pedido.pais === 'Brasil' ? '🇧🇷' : pedido.pais === 'Portugal' ? '🇵🇹' : '🌍'}
                         </td>
 
-                        {/* Ícone Original do Serviço */}
                         <td className="p-4 flex justify-center">
                           <img 
                             src={`https://cdn.simpleicons.org/${getServiceIcon(pedido.servico)}`} 
