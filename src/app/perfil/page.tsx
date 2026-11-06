@@ -22,7 +22,7 @@ export default function PerfilPage() {
   const [telefone, setTelefone] = useState('');
   const [saldo, setSaldo] = useState(0);
   const [currency, setCurrency] = useState('MZN');
-  const [userCode, setUserCode] = useState(''); // 🆕 ID Público (k123456)
+  const [userCode, setUserCode] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   
   // Novos Dados Pessoais
@@ -56,7 +56,7 @@ export default function PerfilPage() {
         setCurrency(profile.currency || 'MZN');
         setSaldo(parseFloat(profile.saldo) || 0);
         setAvatarUrl(profile.avatar_url || null);
-        setUserCode(profile.user_code || 'Gerando...'); // 🆕 Lê o ID Público
+        setUserCode(profile.user_code || 'Gerando...'); 
         
         setDataNascimento(profile.data_nascimento || '');
         setPaisResidencia(profile.pais_residencia || 'Moçambique');
@@ -98,18 +98,18 @@ export default function PerfilPage() {
     }
   };
 
-  // 🆕 Função de atualizar corrigida e com validação
+  // 🆕 Função de atualizar com verificação real de erro
   const handleAtualizarPerfil = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
 
     const toastId = toast.loading('A atualizar o perfil...');
 
-    // Trata os valores nulos para o Supabase não rejeitar
     const telParaGuardar = (telefone === 'Não definido' || telefone.trim() === '') ? null : telefone;
     const dataParaGuardar = dataNascimento.trim() === '' ? null : dataNascimento;
 
-    const { error: errorDados } = await supabase
+    // 🆕 O .select() obriga o Supabase a devolver os dados atualizados. Se o RLS bloquear, a array vem vazia.
+    const { data, error } = await supabase
       .from('profiles')
       .update({ 
         nome_completo: nome, 
@@ -118,11 +118,17 @@ export default function PerfilPage() {
         pais_residencia: paisResidencia,
         genero: genero || null
       })
-      .eq('id', session.user.id);
+      .eq('id', session.user.id)
+      .select();
 
-    if (errorDados) {
-      console.error("Erro Supabase:", errorDados);
-      toast.error(`Erro ao guardar: ${errorDados.message}`, { id: toastId });
+    if (error) {
+      console.error("Erro Supabase:", error);
+      toast.error(`Erro ao guardar: ${error.message}`, { id: toastId });
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      toast.error('Erro: O Supabase bloqueou a gravação (RLS).', { id: toastId });
       return;
     }
 
@@ -179,7 +185,6 @@ export default function PerfilPage() {
               </Link>
             </div>
 
-            {/* Cartão de Informação */}
             <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-6 mb-6 flex items-center gap-4">
               <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
                 {avatarUrl ? (
@@ -197,11 +202,9 @@ export default function PerfilPage() {
 
               <div className="flex-1">
                 <h2 className="text-xl font-bold">{nome || 'Utilizador Konnex'}</h2>
-                {/* 🆕 Mostra o telefone correto ou aviso */}
                 <p className="text-slate-400 text-sm mt-1">
                   📞 {telefone === 'Não definido' ? 'Número não registado' : telefone}
                 </p>
-                {/* 🆕 Mostra o ID Público (k123456) */}
                 <p className="text-slate-500 text-xs font-mono mt-1">
                   ID: {userCode}
                 </p>
