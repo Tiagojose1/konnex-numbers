@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { countries, Country } from '@/data/countries';
-import { converterParaUSD } from '@/lib/currencies'; // 🆕 Importação necessária para a conversão
+import { converterParaUSD } from '@/lib/currencies';
 
 export default function RegistoPage() {
   const router = useRouter();
@@ -24,7 +24,7 @@ export default function RegistoPage() {
 
   // Estado do País Selecionado
   const [paisSelecionado, setPaisSelecionado] = useState<Country>(
-    countries.find(c => c.id === 'mz') || countries[0] // Padrão: Moçambique
+    countries.find(c => c.id === 'mz') || countries[0]
   );
   const [telefone, setTelefone] = useState('');
 
@@ -32,17 +32,15 @@ export default function RegistoPage() {
   const [modalPaisAberto, setModalPaisAberto] = useState(false);
   const [pesquisaPais, setPesquisaPais] = useState('');
 
-  // Filtrar países pela pesquisa
   const paisesFiltrados = countries.filter(c => 
     c.name.toLowerCase().includes(pesquisaPais.toLowerCase()) || 
     c.code.includes(pesquisaPais)
   );
 
-  // Quando o utilizador escolhe um país no modal
   const handleSelecionarPais = (pais: Country) => {
     setPaisSelecionado(pais);
     setModalPaisAberto(false);
-    setPesquisaPais(''); // Limpa a pesquisa
+    setPesquisaPais('');
   };
 
   const handleRegisto = async (e: React.FormEvent) => {
@@ -53,16 +51,35 @@ export default function RegistoPage() {
     if (!dataNascimento || !genero) return toast.error('Por favor, preencha todos os dados obrigatórios.');
 
     setLoading(true);
-    const toastId = toast.loading('A criar a sua conta...');
+    const toastId = toast.loading('A verificar dados...');
+
+    const telefoneCompleto = `${paisSelecionado.code} ${telefone}`;
+
+    // 🆕 VERIFICAÇÃO DA LISTA NEGRA (BLOCKED USERS)
+    const { data: blocked, error: blockError } = await supabase
+      .from('blocked_users')
+      .select('*')
+      .or(`email.eq.${email},telefone.eq.${telefoneCompleto}`)
+      .maybeSingle();
+
+    if (blockError) {
+      console.error('Erro ao verificar bloqueio:', blockError);
+      // Se houver erro na verificação, podemos continuar ou parar. Vamos continuar por segurança.
+    }
+
+    if (blocked) {
+      toast.error('Este e-mail ou número de telefone está bloqueado e não pode ser registado.', { id: toastId });
+      setLoading(false);
+      return;
+    }
+
+    toast.loading('A criar a sua conta...', { id: toastId });
 
     const moedaEscolhida = paisSelecionado.currency;
     
-    // 🆕 Lê o código de convite do URL (se existir)
     const urlParams = new URLSearchParams(window.location.search);
     const referralCode = urlParams.get('ref');
 
-    // 🆕 Calcula o saldo inicial: O utilizador ganha 10 unidades da moeda local (ex: 10 MT).
-    // Convertemos esses 10 MT para USD para guardar na base de dados.
     const saldoInicialUSD = converterParaUSD(10, moedaEscolhida);
 
     const { data, error } = await supabase.auth.signUp({
@@ -71,13 +88,13 @@ export default function RegistoPage() {
       options: { 
         data: { 
           nome_completo: nome, 
-          telefone: `${paisSelecionado.code} ${telefone}`,
+          telefone: telefoneCompleto,
           currency: moedaEscolhida,
           data_nascimento: dataNascimento,
           pais_residencia: paisSelecionado.name,
           genero: genero,
-          saldo: saldoInicialUSD, // 🆕 Saldo inicial convertido
-          referred_by: referralCode || null // 🆕 Guarda quem convidou
+          saldo: saldoInicialUSD,
+          referred_by: referralCode || null
         } 
       }
     });
@@ -106,23 +123,13 @@ export default function RegistoPage() {
         
         {/* CABEÇALHO */}
         <div className="text-center mb-8 flex flex-col items-center">
-          
           <div className="relative flex justify-center mb-4">
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-violet-600 rounded-full blur-3xl brilho-pulsante"></div>
-            <img 
-              src="/globo.png" 
-              alt="Globo Konnex" 
-              className="w-20 h-20 relative z-10 globo-girando object-contain"
-            />
+            <img src="/globo.png" alt="Globo Konnex" className="w-20 h-20 relative z-10 globo-girando object-contain" />
           </div>
-
           <h1 className="text-4xl font-extrabold tracking-tight mb-2 flex items-center gap-2">
-            <span className="bg-gradient-to-r from-violet-500 via-blue-500 to-cyan-400 bg-clip-text text-transparent">
-              Konnex
-            </span>
-            <span className="text-white">
-              Numbers
-            </span>
+            <span className="bg-gradient-to-r from-violet-500 via-blue-500 to-cyan-400 bg-clip-text text-transparent">Konnex</span>
+            <span className="text-white">Numbers</span>
           </h1>
           <p className="text-slate-400 text-sm">Crie sua conta para começar.</p>
         </div>
@@ -138,19 +145,13 @@ export default function RegistoPage() {
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seuemail@exemplo.com" className={inputClass} required />
           </div>
 
-          {/* Campo de Telefone com Seletor de Países */}
           <div>
             <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Número de Telefone</label>
             <div className="flex gap-2">
-              <button 
-                type="button"
-                onClick={() => setModalPaisAberto(true)}
-                className="flex items-center gap-2 p-4 bg-slate-800 border border-slate-700 rounded-xl text-white outline-none w-[120px] hover:border-cyan-500 transition-colors"
-              >
+              <button type="button" onClick={() => setModalPaisAberto(true)} className="flex items-center gap-2 p-4 bg-slate-800 border border-slate-700 rounded-xl text-white outline-none w-[120px] hover:border-cyan-500 transition-colors">
                 <span className="text-xl">{paisSelecionado.flag}</span>
                 <span className="text-sm font-bold">{paisSelecionado.code}</span>
               </button>
-
               <input type="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="84XXXXXXX" className={`${inputClass} flex-1`} required />
             </div>
             <p className="text-xs text-slate-500 mt-1">País de residência: <span className="text-cyan-400 font-bold">{paisSelecionado.name}</span></p>
@@ -193,60 +194,40 @@ export default function RegistoPage() {
         </form>
 
         <div className="mt-6 text-center">
-          <Link href="/login" className="text-sm text-cyan-400 hover:text-cyan-300 font-medium">
-            Já tem conta? Entre aqui
-          </Link>
+          <Link href="/login" className="text-sm text-cyan-400 hover:text-cyan-300 font-medium">Já tem conta? Entre aqui</Link>
         </div>
       </div>
 
-      {/* MODAL DE SELEÇÃO DE PAÍS COM LUPA DE PESQUISA */}
+      {/* MODAL DE SELEÇÃO DE PAÍS */}
       {modalPaisAberto && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[100] backdrop-blur-sm">
           <div className="bg-white w-full max-w-md rounded-2xl flex flex-col max-h-[80vh] overflow-hidden shadow-2xl">
-            
             <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
               <h3 className="font-bold text-gray-800">Selecione o País</h3>
               <button onClick={() => setModalPaisAberto(false)} className="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
             </div>
-
             <div className="p-4 bg-white border-b border-gray-100">
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
-                <input 
-                  type="text" 
-                  placeholder="Pesquisar país..." 
-                  value={pesquisaPais}
-                  onChange={(e) => setPesquisaPais(e.target.value)}
-                  className="w-full bg-gray-100 text-gray-800 p-3 pl-10 rounded-lg outline-none focus:ring-2 focus:ring-cyan-500"
-                  autoFocus
-                />
+                <input type="text" placeholder="Pesquisar país..." value={pesquisaPais} onChange={(e) => setPesquisaPais(e.target.value)} className="w-full bg-gray-100 text-gray-800 p-3 pl-10 rounded-lg outline-none focus:ring-2 focus:ring-cyan-500" autoFocus />
               </div>
             </div>
-
             <div className="flex-1 overflow-y-auto p-2">
               {paisesFiltrados.length > 0 ? (
                 paisesFiltrados.map((pais) => (
-                  <button
-                    key={pais.id}
-                    onClick={() => handleSelecionarPais(pais)}
-                    className="w-full flex items-center justify-between p-3 hover:bg-gray-100 rounded-lg transition-colors text-left"
-                  >
+                  <button key={pais.id} onClick={() => handleSelecionarPais(pais)} className="w-full flex items-center justify-between p-3 hover:bg-gray-100 rounded-lg transition-colors text-left">
                     <div className="flex items-center gap-3">
                       <span className="text-2xl">{pais.flag}</span>
                       <span className="font-medium text-gray-800">{pais.name}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-gray-500 font-mono">{pais.code}</span>
-                      {paisSelecionado.id === pais.id && (
-                        <span className="text-cyan-600 font-bold">✓</span>
-                      )}
+                      {paisSelecionado.id === pais.id && <span className="text-cyan-600 font-bold">✓</span>}
                     </div>
                   </button>
                 ))
               ) : (
-                <div className="p-4 text-center text-gray-500">
-                  Nenhum país encontrado.
-                </div>
+                <div className="p-4 text-center text-gray-500">Nenhum país encontrado.</div>
               )}
             </div>
           </div>
