@@ -61,7 +61,7 @@ export default function ServicosPage() {
         return;
     }
 
-    // 🆕 VERIFICAÇÃO DE E-MAIL CONFIRMADO
+    // VERIFICAÇÃO DE E-MAIL CONFIRMADO
     const { data: { user } } = await supabase.auth.getUser();
     if (!user?.email_confirmed_at) {
       toast.error('Por favor, confirme o seu e-mail antes de fazer uma compra. Verifique a sua caixa de entrada.');
@@ -107,6 +107,7 @@ export default function ServicosPage() {
       }),
     });
 
+    // 🆕 AQUI ESTÁ A PARTE QUE PROCURAS
     const dados = await resposta.json();
 
     if (dados.error) {
@@ -114,7 +115,8 @@ export default function ServicosPage() {
       setAProcessar(null);
     } else {
       toast.success(dados.mensagem, { id: toastId });
-      router.push('/pedidos');
+      // 🆕 Redireciona imediatamente para a tabela de pedidos
+      router.push('/pedidos'); 
     }
   };
 
