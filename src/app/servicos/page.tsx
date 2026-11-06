@@ -10,7 +10,6 @@ import { supabase } from '@/lib/supabase';
 import { countries, getCountry, Country } from '@/data/countries';
 import { services, Service } from '@/data/services';
 import { getPrice } from '@/data/pricesByCountry';
-import { formatarMoeda } from '@/lib/currencies';
 
 export default function ServicosPage() {
   const router = useRouter();
@@ -22,8 +21,6 @@ export default function ServicosPage() {
   const [modalAberto, setModalAberto] = useState(false);
   const [servicoSelecionado, setServicoSelecionado] = useState<Service | null>(null);
   const [paisSelecionadoParaCompra, setPaisSelecionadoParaCompra] = useState<Country | null>(null);
-
-  // 🆕 Estado para aviso de saldo insuficiente
   const [modalSaldoAberto, setModalSaldoAberto] = useState(false);
 
   const togglePais = (paisId: string) => {
@@ -64,7 +61,16 @@ export default function ServicosPage() {
         return;
     }
 
-    // 🆕 VALIDAÇÃO DE SALDO
+    // 🆕 VERIFICAÇÃO DE E-MAIL CONFIRMADO
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user?.email_confirmed_at) {
+      toast.error('Por favor, confirme o seu e-mail antes de fazer uma compra. Verifique a sua caixa de entrada.');
+      setAProcessar(null);
+      setModalAberto(false);
+      return;
+    }
+
+    // VALIDAÇÃO DE SALDO
     const { data: profile } = await supabase
       .from('profiles')
       .select('saldo, currency')
@@ -81,13 +87,11 @@ export default function ServicosPage() {
     const precoEmUSD = precoInfo.price || 0;
 
     if (saldoEmUSD < precoEmUSD) {
-      // Mostra o modal bonito de saldo insuficiente
       setModalSaldoAberto(true);
       setAProcessar(null);
       return;
     }
 
-    // Se tiver saldo, fecha o modal e processa
     setModalAberto(false);
     const toastId = toast.loading("A processar o seu pedido...");
 
@@ -273,7 +277,7 @@ export default function ServicosPage() {
         </div>
       )}
 
-      {/* 🆕 MODAL BONITO DE SALDO INSUFICIENTE */}
+      {/* MODAL DE SALDO INSUFICIENTE */}
       {modalSaldoAberto && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[100]">
           <div className="bg-slate-800 w-full max-w-sm rounded-2xl p-6 border border-red-500/30 shadow-2xl text-center">
@@ -285,10 +289,7 @@ export default function ServicosPage() {
               Não tem saldo suficiente para comprar este número. Por favor, adicione saldo à sua conta para continuar.
             </p>
             
-            <Link 
-              href="/saldo" 
-              className="block w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-xl transition-colors mb-3"
-            >
+            <Link href="/saldo" className="block w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-xl transition-colors mb-3">
               Depositar Agora
             </Link>
             <button onClick={() => setModalSaldoAberto(false)} className="w-full text-slate-400 text-sm hover:text-white">

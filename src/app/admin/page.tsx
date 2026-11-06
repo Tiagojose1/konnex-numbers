@@ -11,6 +11,7 @@ interface Ticket { id: string; user_id: string; status: string; created_at: stri
 interface Mensagem { id: string; sender_type: string; message: string | null; translated_message: string | null; image_url: string | null; created_at: string; }
 interface Transacao { id: string; valor: number; metodo: string; status: string; created_at: string; profiles: { nome_completo: string; email: string } | null; }
 interface Pedido { id: string; numero: string; servico: string; pais: string; valor: number; status: string; sms_otp: string; created_at: string; profiles: { nome_completo: string; email: string } | null; }
+interface GraficoItem { dia: string; valor: number; }
 
 export default function AdminPage() {
   const router = useRouter();
@@ -20,6 +21,7 @@ export default function AdminPage() {
   const [atualizando, setAtualizando] = useState(false);
 
   const [stats, setStats] = useState({ totalUsers: 0, saldoTotalUSD: 0, totalPedidos: 0 });
+  const [graficoData, setGraficoData] = useState<GraficoItem[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [transacoes, setTransacoes] = useState<Transacao[]>([]);
@@ -54,15 +56,28 @@ export default function AdminPage() {
   const carregarAdminData = async () => {
     setAtualizando(true);
     try {
+      // Carrega gestão (users, transacoes, pedidos)
       const res = await fetch('/api/admin/gestao');
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       
-      setStats(data.stats);
       setUsers(data.users);
       setTransacoes(data.transacoes);
       setPedidos(data.pedidos);
 
+      // 🆕 Carrega as estatísticas e os dados do gráfico
+      const resStats = await fetch('/api/admin/stats');
+      const dataStats = await resStats.json();
+      if (!dataStats.error) {
+        setStats({
+          totalUsers: dataStats.totalUsers,
+          saldoTotalUSD: dataStats.saldoTotalUSD,
+          totalPedidos: dataStats.totalPedidos
+        });
+        setGraficoData(dataStats.graficoData || []);
+      }
+
+      // Carrega tickets
       const { data: ticketsData } = await supabase
         .from('support_tickets')
         .select(`*, profiles!user_id (nome_completo)`)
@@ -105,6 +120,20 @@ export default function AdminPage() {
     }
   };
 
+  // 🆕 Exportar Relatório CSV
+  const exportarCSV = () => {
+    const csv = "Métrica,Valor\n" + 
+                `Total Utilizadores,${stats.totalUsers}\n` + 
+                `Saldo em Carteiras (USD),${stats.saldoTotalUSD.toFixed(2)}\n` + 
+                `Total Pedidos,${stats.totalPedidos}`;
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `relatorio_konnex_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+  };
+
   // Chat de Suporte
   const abrirTicket = async (ticket: Ticket) => {
     setTicketSelecionado(ticket); setChatAberto(true); setHistorico([]);
@@ -135,48 +164,78 @@ export default function AdminPage() {
 
   if (!autorizado) return <div className="min-h-screen bg-[#0f172a] flex items-center justify-center text-white">A verificar credenciais...</div>;
 
+  // Calcula o valor máximo do gráfico para as barras ficarem proporcionais
+  const maxValorGrafico = graficoData.length > 0 ? Math.max(...graficoData.map(d => d.valor)) : 1;
+
   return (
     <div className="min-h-screen bg-[#0f172a] p-6 font-sans text-white pb-24">
       <div className="max-w-6xl mx-auto">
         
-        {/* CABEÇALHO COM BOTÃO DE ATUALIZAR CORRIGIDO */}
+        {/* CABEÇALHO */}
         <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-2xl font-bold">Konnex Admin</h1>
             <p className="text-slate-400 text-sm">Gestão Global</p>
           </div>
-          <button 
-            onClick={carregarAdminData} 
-            disabled={atualizando}
-            className="bg-slate-800 px-4 py-2 rounded-lg text-sm hover:bg-slate-700 transition-colors disabled:opacity-50 flex items-center gap-2"
-          >
-            {atualizando ? '⏳ A atualizar...' : '🔄 Atualizar Dados'}
-          </button>
+          <div className="flex gap-2">
+            <button onClick={exportarCSV} className="bg-slate-800 px-4 py-2 rounded-lg text-sm hover:bg-slate-700 transition-colors">📥 Exportar CSV</button>
+            <button 
+              onClick={carregarAdminData} 
+              disabled={atualizando}
+              className="bg-slate-800 px-4 py-2 rounded-lg text-sm hover:bg-slate-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+            >
+              {atualizando ? '⏳ A atualizar...' : '🔄 Atualizar Dados'}
+            </button>
+          </div>
         </div>
 
         {/* ABAS */}
         <div className="flex gap-2 mb-6 border-b border-slate-800 pb-2 overflow-x-auto">
           <button onClick={() => setAbaAtiva('dashboard')} className={`px-4 py-2 whitespace-nowrap rounded-t-lg font-bold text-sm ${abaAtiva === 'dashboard' ? 'text-cyan-400 border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>📊 Resumo</button>
-          <button onClick={() => setAbaAtiva('historico')} className={`px-4 py-2 whitespace-nowrap rounded-t-lg font-bold text-sm ${abaAtiva === 'historico' ? 'text-cyan-400 border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>📜 Histórico (Movimentos)</button>
+          <button onClick={() => setAbaAtiva('historico')} className={`px-4 py-2 whitespace-nowrap rounded-t-lg font-bold text-sm ${abaAtiva === 'historico' ? 'text-cyan-400 border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>📜 Histórico</button>
           <button onClick={() => setAbaAtiva('users')} className={`px-4 py-2 whitespace-nowrap rounded-t-lg font-bold text-sm ${abaAtiva === 'users' ? 'text-cyan-400 border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>👥 Utilizadores</button>
           <button onClick={() => setAbaAtiva('tickets')} className={`px-4 py-2 whitespace-nowrap rounded-t-lg font-bold text-sm ${abaAtiva === 'tickets' ? 'text-cyan-400 border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>🎧 Suporte</button>
         </div>
 
         {/* ABA: DASHBOARD */}
         {abaAtiva === 'dashboard' && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg">
-              <p className="text-slate-400 text-xs font-bold uppercase mb-2">Total Utilizadores</p>
-              <p className="text-4xl font-extrabold text-white">{stats.totalUsers}</p>
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg">
+                <p className="text-slate-400 text-xs font-bold uppercase mb-2">Total Utilizadores</p>
+                <p className="text-4xl font-extrabold text-white">{stats.totalUsers}</p>
+              </div>
+              <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg">
+                <p className="text-slate-400 text-xs font-bold uppercase mb-2">Saldo Total (Carteiras)</p>
+                <p className="text-4xl font-extrabold text-green-400">$ {stats.saldoTotalUSD.toFixed(2)}</p>
+              </div>
+              <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg">
+                <p className="text-slate-400 text-xs font-bold uppercase mb-2">Total Pedidos (Números)</p>
+                <p className="text-4xl font-extrabold text-cyan-400">{stats.totalPedidos}</p>
+              </div>
             </div>
-            <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg">
-              <p className="text-slate-400 text-xs font-bold uppercase mb-2">Saldo Total (Carteiras)</p>
-              <p className="text-4xl font-extrabold text-green-400">$ {stats.saldoTotalUSD.toFixed(2)}</p>
-            </div>
-            <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg">
-              <p className="text-slate-400 text-xs font-bold uppercase mb-2">Total Pedidos (Números)</p>
-              <p className="text-4xl font-extrabold text-cyan-400">{stats.totalPedidos}</p>
-            </div>
+
+            {/* 🆕 GRÁFICO DE VENDAS */}
+            {graficoData.length > 0 && (
+              <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg">
+                <h2 className="text-lg font-bold mb-6">Vendas dos Últimos 7 Dias (USD)</h2>
+                <div className="flex items-end gap-2 md:gap-4 h-48">
+                  {graficoData.map((item, i) => {
+                    const altura = (item.valor / maxValorGrafico) * 100;
+                    return (
+                      <div key={i} className="flex-1 flex flex-col items-center justify-end h-full gap-2">
+                        <span className="text-[10px] text-slate-400 font-bold">${item.valor.toFixed(0)}</span>
+                        <div 
+                          className="w-full bg-gradient-to-t from-purple-600 to-cyan-400 rounded-t-md transition-all duration-500 hover:opacity-80" 
+                          style={{ height: `${Math.max(altura, 5)}%` }} // Mínimo 5% para a barra ser visível
+                        ></div>
+                        <span className="text-[10px] text-slate-500">{item.dia}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -275,7 +334,6 @@ export default function AdminPage() {
                       <td className="p-4 text-sm text-slate-400">{u.email}</td>
                       <td className="p-4 text-sm text-green-400 font-bold">$ {parseFloat(u.saldo as any).toFixed(2)}</td>
                       <td className="p-4">
-                        {/* 🆕 Agora o botão abre o modal */}
                         <button onClick={() => { setUserSelecionado(u); setValorAjuste(''); }} className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-1.5 px-3 rounded transition-colors">
                           Ajustar Saldo
                         </button>
@@ -317,7 +375,7 @@ export default function AdminPage() {
         )}
       </div>
 
-      {/* 🆕 MODAL DE AJUSTE DE SALDO */}
+      {/* MODAL DE AJUSTE DE SALDO */}
       {userSelecionado && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[100]">
           <div className="bg-slate-800 w-full max-w-sm rounded-2xl p-6 border border-slate-700 shadow-2xl">
