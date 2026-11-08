@@ -8,19 +8,44 @@ const supabaseAdmin = createClient(
 );
 
 const fivesimKey = process.env.FIVESIM_API_KEY?.trim();
-const smspoolKey = process.env.SMSPOOL_API_KEY?.trim();
+
+const mapaServicos: Record<string, string> = {
+  'WhatsApp': 'whatsapp',
+  'Telegram': 'telegram',
+  'Instagram & Threads': 'instagram',
+  'Insta connect': 'instagram',
+  'Facebook': 'facebook',
+  'Google / Gmail / YouTube': 'google',
+  'Google': 'google',
+  'YouTube': 'youtube',
+  'TikTok / Douyin': 'tiktok',
+  'X (Twitter)': 'twitter',
+  'Twitter': 'twitter'
+};
+
+const mapaPaises: Record<string, string> = { 
+  'Moçambique': 'mozambique', 
+  'Brasil': 'brazil', 
+  'Portugal': 'portugal',
+  'África do Sul': 'southafrica',
+  'Estados Unidos': 'usa',
+  'Holanda': 'netherlands',
+  'Reino Unido': 'england',
+  'Alemanha': 'germany',
+  'França': 'france'
+};
 
 export async function POST(request: Request) {
   try {
     const { userId, servico, pais, preco, isCustom } = await request.json();
 
-    // 1. Rate Limiting
-    const trintaSegundosAtras = new Date(Date.now() - 30000).toISOString();
+    // 1. Rate Limiting (1 Minuto)
+    const umMinutoAtras = new Date(Date.now() - 60000).toISOString();
     const { data: ultimoPedido } = await supabaseAdmin
-      .from('orders').select('id').eq('user_id', userId).gte('data_criacao', trintaSegundosAtras).limit(1);
+      .from('orders').select('id').eq('user_id', userId).gte('data_criacao', umMinutoAtras).limit(1);
 
     if (ultimoPedido && ultimoPedido.length > 0) {
-      return NextResponse.json({ error: 'Aguarde 30 segundos antes de fazer uma nova compra.' }, { status: 429 });
+      return NextResponse.json({ error: 'Aguarde 1 minuto antes de fazer uma nova compra.' }, { status: 429 });
     }
 
     // 2. Verificar Saldo
@@ -34,81 +59,41 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Saldo insuficiente.' }, { status: 400 });
     }
 
-    // 3. Deduzir Saldo
+    // 3. Deduzir Saldo IMEDIATAMENTE
     const novoSaldo = saldoAtual - valorCompra;
     await supabaseAdmin.from('profiles').update({ saldo: novoSaldo }).eq('id', userId);
 
-    // 4. LÓGICA DE COMPRA REAL
+    // 4. LÓGICA DE COMPRA (APENAS 5SIM)
     let numeroVirtual = '';
     let idFornecedor = null;
-    let fornecedorUsado = '';
 
     try {
-      const mapaPaises: Record<string, string> = { 
-        'Moçambique': 'mozambique', 
-        'Brasil': 'brazil', 
-        'Portugal': 'portugal',
-        'África do Sul': 'southafrica',
-        'Estados Unidos': 'usa'
-      };
       const paisApi = mapaPaises[pais] || 'mozambique';
+      const servicoApi = mapaServicos[servico] || servico.toLowerCase().replace(/\s+/g, '');
 
-      if (servico === 'WhatsApp' && fivesimKey) {
-        fornecedorUsado = '5sim';
-        
-        const res = await fetch(`https://5sim.net/v1/user/buy/activation/${paisApi}/any/whatsapp`, {
-          method: 'GET',
-          headers: { 'Authorization': `Bearer ${fivesimKey}`, 'Accept': 'application/json' }
-        });
-        
-        const textoResposta = await res.text();
-        let data;
+      if (!fivesimKey) throw new Error('Chave da 5SIM não configurada.');
 
-        try {
-          data = JSON.parse(textoResposta);
-        } catch {
-          throw new Error(textoResposta);
-        }
+      const res = await fetch(`https://5sim.net/v1/user/buy/activation/${paisApi}/any/${servicoApi}`, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${fivesimKey}`, 'Accept': 'application/json' }
+      });
+      
+      const textoResposta = await res.text();
+      let data;
 
-        if (!res.ok) throw new Error(data.message || 'Erro na 5SIM');
-        
-        numeroVirtual = data.phone;
-        idFornecedor = data.id.toString();
-
-      } else if (smspoolKey) {
-        fornecedorUsado = 'smspool';
-        const paisCod = pais === 'Moçambique' ? 'MZ' : pais === 'Brasil' ? 'BR' : pais === 'Portugal' ? 'PT' : pais === 'África do Sul' ? 'ZA' : 'US';
-        
-        const res = await fetch('https://api.smspool.net/purchase/sms', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({
-            key: smspoolKey,
-            country: paisCod,
-            service: servico.toLowerCase().replace(' ', '')
-          })
-        });
-
-        const textoResposta = await res.text();
-        let data;
-
-        try {
-          data = JSON.parse(textoResposta);
-        } catch {
-          throw new Error(textoResposta);
-        }
-
-        if (!res.ok || data.success === 0) throw new Error(data.message || 'Erro na SMSPool');
-
-        numeroVirtual = data.number;
-        idFornecedor = data.order_id;
-
-      } else {
-        throw new Error('Nenhum fornecedor de SMS configurado.');
+      try {
+        data = JSON.parse(textoResposta);
+      } catch {
+        throw new Error(textoResposta);
       }
 
-    } catch (error: unknown) {
-      // Devolve o dinheiro ao utilizador
+      if (!res.ok) throw new Error(data.message || data.error || 'Erro na 5SIM');
+      
+      numeroVirtual = data.phone;
+      idFornecedor = data.id.toString();
+
+    } catch (error) {
+      // 🆕 DEVOLVE O DINHEIRO APENAS SE A 5SIM FALHAR
       await supabaseAdmin.from('profiles').update({ saldo: saldoAtual }).eq('id', userId);
       
       const mensagemErro = error instanceof Error ? error.message : String(error);
@@ -126,34 +111,35 @@ export async function POST(request: Request) {
         pais: pais,
         servico: servico,
         valor: valorCompra,
-        is_custom: isCustom || false, // Garante que é boolean
+        is_custom: isCustom || false,
         provider_order_id: idFornecedor,
-        provider_name: fornecedorUsado
+        provider_name: '5sim'
       })
       .select().single();
 
-    // 🆕 CORREÇÃO CRÍTICA: Mostrar o erro real do Supabase
+    // 🆕 SE DER ERRO AO GUARDAR, NÃO DEVOLVE O DINHEIRO (O NÚMERO JÁ FOI COMPRADO)
     if (pedidoError) {
-      console.error('ERRO AO GUARDAR PEDIDO:', pedidoError); // Isto vai aparecer nos logs da Vercel
-      await supabaseAdmin.from('profiles').update({ saldo: saldoAtual }).eq('id', userId);
+      console.error('🚨 ERRO CRÍTICO AO GUARDAR PEDIDO (Mas número já comprado):', pedidoError);
       return NextResponse.json({ 
-        error: `Erro ao guardar pedido: ${pedidoError.message}` // 🆕 Mostra o erro real ao utilizador
-      }, { status: 500 });
+        sucesso: true, 
+        mensagem: `Número obtido via 5SIM, mas houve um erro interno no registo. O seu número é: ${numeroVirtual}`,
+        novoSaldo 
+      });
     }
 
-    // 6. Registar Transação
+    // 6. Registar Transação (Para o Histórico do Admin)
     await supabaseAdmin.from('transactions').insert({
       user_id: userId, tipo: 'Compra', valor: -valorCompra, metodo: servico, status: 'Aprovado'
     });
 
     return NextResponse.json({ 
       sucesso: true, 
-      mensagem: `Número real obtido via ${fornecedorUsado}!`, 
+      mensagem: `Número real obtido via 5SIM!`, 
       pedido: pedido,
       novoSaldo: novoSaldo 
     });
 
-  } catch (error: unknown) {
+  } catch (error) {
     console.error(error);
     const mensagemErro = error instanceof Error ? error.message : 'Erro interno do servidor.';
     return NextResponse.json({ error: mensagemErro }, { status: 500 });
