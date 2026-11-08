@@ -9,24 +9,28 @@ const supabaseAdmin = createClient(
 
 export async function GET() {
   try {
+    // 1. Total de Utilizadores
+    const { count: totalUsers } = await supabaseAdmin
+      .from('profiles')
+      .select('*', { count: 'exact', head: true });
+
+    // 2. Saldo Total (Carteiras)
     const { data: profiles } = await supabaseAdmin.from('profiles').select('saldo');
-    const saldoTotalUsuarios = profiles?.reduce((acc, curr) => acc + (parseFloat(curr.saldo) || 0), 0) || 0;
+    const saldoTotalUSD = profiles?.reduce((acc, curr) => acc + (parseFloat(curr.saldo) || 0), 0) || 0;
 
-    const { count: totalUsers } = await supabaseAdmin.from('profiles').select('*', { count: 'exact', head: true });
-
-    // 🆕 A tua receita (soma de todas as compras concluídas)
+    // 3. Receita Total (Vendas)
     const { data: pedidosConcluidos } = await supabaseAdmin
       .from('orders')
       .select('valor')
       .eq('status', 'Concluído');
       
-    const receitaPlataforma = pedidosConcluidos?.reduce((acc, curr) => acc + (parseFloat(curr.valor) || 0), 0) || 0;
+    const receitaTotal = pedidosConcluidos?.reduce((acc, curr) => acc + (parseFloat(curr.valor) || 0), 0) || 0;
+    const totalPedidos = pedidosConcluidos?.length || 0;
 
-    const { count: totalPedidos } = await supabaseAdmin.from('orders').select('*', { count: 'exact', head: true });
-
-    // Dados do gráfico (últimos 7 dias)
+    // 4. Dados do Gráfico (Últimos 7 dias)
     const seteDiasAtras = new Date();
     seteDiasAtras.setDate(seteDiasAtras.getDate() - 7);
+
     const { data: vendas } = await supabaseAdmin
       .from('orders')
       .select('data_criacao, valor')
@@ -34,26 +38,30 @@ export async function GET() {
       .eq('status', 'Concluído');
 
     const vendasPorDia: Record<string, number> = {};
-    vendas?.forEach(v => {
-      const dia = new Date(v.data_criacao).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
-      vendasPorDia[dia] = (vendasPorDia[dia] || 0) + parseFloat(v.valor);
+    
+    vendas?.forEach(venda => {
+      const dia = new Date(venda.data_criacao).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
+      vendasPorDia[dia] = (vendasPorDia[dia] || 0) + parseFloat(venda.valor);
     });
 
-    const graficoData = Object.keys(vendasPorDia).map(dia => ({ dia, valor: vendasPorDia[dia] }))
-      .sort((a, b) => {
-        const [d1, m1] = a.dia.split('/').map(Number);
-        const [d2, m2] = b.dia.split('/').map(Number);
-        return (m1 * 31 + d1) - (m2 * 31 + d2);
-      });
+    const graficoData = Object.keys(vendasPorDia).map(dia => ({
+      dia: dia,
+      valor: vendasPorDia[dia]
+    }));
 
     return NextResponse.json({
-      totalUsers: totalUsers || 0,
-      saldoTotalUsuarios,
-      receitaPlataforma,
-      totalPedidos: totalPedidos || 0,
+      totalUsers,
+      saldoTotalUSD,
+      receitaTotal,
+      totalPedidos,
       graficoData
     });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+
+  } catch (error) { // 🆕 Removido o ': any'
+    // 🆕 Verificação segura do erro
+    const mensagemErro = error instanceof Error ? error.message : 'Erro desconhecido no servidor';
+    console.error("Erro na API de stats:", mensagemErro);
+    
+    return NextResponse.json({ error: mensagemErro }, { status: 500 });
   }
 }

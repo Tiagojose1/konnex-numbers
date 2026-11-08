@@ -9,31 +9,22 @@ const supabaseAdmin = createClient(
 
 export async function GET() {
   try {
-    // 1. Lista de Utilizadores
     const { data: users } = await supabaseAdmin
       .from('profiles')
       .select('id, nome_completo, email, saldo, currency, created_at')
       .order('created_at', { ascending: false })
-      .limit(100);
+      .limit(50);
 
-    // 2. Histórico de Depósitos (Transações)
     const { data: transacoes } = await supabaseAdmin
       .from('transactions')
-      .select(`
-        id, valor, metodo, status, created_at, 
-        profiles!user_id (nome_completo)
-      `)
+      .select(`*, profiles:user_id (nome_completo, email)`)
       .order('created_at', { ascending: false })
       .limit(50);
 
-    // 3. Histórico de Compras (Pedidos)
     const { data: pedidos } = await supabaseAdmin
       .from('orders')
-      .select(`
-        id, numero, servico, pais, valor, status, sms_otp, created_at,
-        profiles!user_id (nome_completo)
-      `)
-      .order('created_at', { ascending: false })
+      .select(`*, profiles:user_id (nome_completo, email)`)
+      .order('data_criacao', { ascending: false })
       .limit(50);
 
     return NextResponse.json({
@@ -41,45 +32,47 @@ export async function GET() {
       transacoes: transacoes || [],
       pedidos: pedidos || []
     });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) { // 🆕 Removido o ': any'
+    const mensagem = error instanceof Error ? error.message : 'Erro desconhecido';
+    console.error("Erro no GET admin:", mensagem);
+    return NextResponse.json({ error: mensagem }, { status: 500 });
   }
 }
 
 export async function POST(request: Request) {
   try {
     const { userId, action, valorUSD } = await request.json();
-    const valor = parseFloat(valorUSD);
 
-    if (isNaN(valor) || valor <= 0) {
-      return NextResponse.json({ error: 'Valor inválido.' }, { status: 400 });
+    if (!userId || !action || !valorUSD) {
+      return NextResponse.json({ error: 'Dados em falta' }, { status: 400 });
     }
 
-    // 1. Buscar o perfil atual
-    const { data: profile, error: errProfile } = await supabaseAdmin
+    const { data: profile, error: erroPerfil } = await supabaseAdmin
       .from('profiles')
       .select('saldo')
       .eq('id', userId)
       .single();
 
-    if (errProfile || !profile) throw new Error('Utilizador não encontrado.');
+    if (erroPerfil) throw new Error('Utilizador não encontrado.');
+    if (!profile) return NextResponse.json({ error: 'Perfil não existe' }, { status: 404 });
 
-    // 2. Calcular o novo saldo
     let novoSaldo = parseFloat(profile.saldo) || 0;
+    const valor = parseFloat(valorUSD);
+
     if (action === 'add') novoSaldo += valor;
     if (action === 'remove') novoSaldo -= valor;
-    if (novoSaldo < 0) novoSaldo = 0;
 
-    // 3. Atualizar na base de dados
-    const { error: errUpdate } = await supabaseAdmin
+    const { error: erroUpdate } = await supabaseAdmin
       .from('profiles')
       .update({ saldo: novoSaldo })
       .eq('id', userId);
 
-    if (errUpdate) throw errUpdate;
+    if (erroUpdate) throw erroUpdate;
 
     return NextResponse.json({ success: true, novoSaldo });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) { // 🆕 Removido o ': any'
+    const mensagem = error instanceof Error ? error.message : 'Erro desconhecido';
+    console.error("Erro no POST admin:", mensagem);
+    return NextResponse.json({ error: mensagem }, { status: 500 });
   }
 }
