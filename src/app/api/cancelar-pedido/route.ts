@@ -31,14 +31,20 @@ export async function POST(request: Request) {
 
     await supabaseAdmin.from('profiles').update({ saldo: novoSaldo }).eq('id', userId);
 
-    // 3. Marcar pedido como Cancelado E atualizar a coluna SMS (para a tabela mostrar "Cancelado")
+    // 3. Marcar pedido como Cancelado e atualizar o status do SMS
     await supabaseAdmin.from('orders').update({ 
       status: 'Cancelado',
-      sms_otp: 'Cancelado' // 🆕 Isto faz a coluna SMS mostrar "Cancelado"
+      sms_otp: 'Cancelado' 
     }).eq('id', pedidoId);
 
     return NextResponse.json({ success: true, mensagem: 'Pedido cancelado e valor reembolsado!' });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    
+  } catch (error: unknown) { // 🆕 Mudança de 'any' para 'unknown'
+    console.error('Erro ao cancelar pedido:', error);
+    
+    // 🆕 Verificação segura para extrair a mensagem do erro
+    const mensagemErro = error instanceof Error ? error.message : 'Erro interno no servidor.';
+    
+    return NextResponse.json({ error: mensagemErro }, { status: 500 });
   }
 }

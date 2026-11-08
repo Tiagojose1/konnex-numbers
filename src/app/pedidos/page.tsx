@@ -92,7 +92,6 @@ export default function MeusPedidosPage() {
     toast.success('Código copiado!');
   };
 
-  // 🆕 Função para Cancelar o Pedido
   const cancelarPedido = async (pedidoId: string) => {
     if (!window.confirm('Deseja cancelar este pedido e receber o reembolso?')) return;
     
@@ -111,7 +110,6 @@ export default function MeusPedidosPage() {
       toast.error(dados.error, { id: 'cancelar' });
     } else {
       toast.success(dados.mensagem, { id: 'cancelar' });
-      // A atualização visual vem automaticamente via Realtime
     }
   };
 
@@ -122,6 +120,20 @@ export default function MeusPedidosPage() {
     if (s.includes('instagram')) return 'instagram';
     if (s.includes('facebook')) return 'facebook';
     return 'google'; 
+  };
+
+  // 🆕 Função para devolver a bandeira correta baseada no nome do país
+  const getFlag = (pais: string) => {
+    const p = pais.toLowerCase();
+    if (p.includes('moçambique') || p.includes('mocambique')) return '🇲🇿';
+    if (p.includes('brasil')) return '🇧🇷';
+    if (p.includes('portugal')) return '🇵🇹';
+    if (p.includes('áfrica do sul') || p.includes('africa do sul')) return '🇿🇦';
+    if (p.includes('estados unidos') || p.includes('eua') || p.includes('usa')) return '🇺🇸';
+    if (p.includes('angola')) return '🇦🇴';
+    if (p.includes('holanda')) return '🇳🇱';
+    if (p.includes('reino unido')) return '🇬🇧';
+    return '🌍'; // Bandeira genérica para os restantes
   };
 
   return (
@@ -164,8 +176,7 @@ export default function MeusPedidosPage() {
                     const isCancelado = pedido.status === 'Cancelado';
                     const isAguardando = pedido.status === 'Aguardando';
 
-                    // Cores dos Status
-                    let statusColor = 'text-yellow-500 bg-yellow-50'; // Aguardando
+                    let statusColor = 'text-yellow-500 bg-yellow-50'; 
                     let statusText = 'Aguardando';
                     if (isSucesso) { statusColor = 'text-green-600 bg-green-50'; statusText = 'Concluído'; }
                     if (isExpirado) { statusColor = 'text-gray-600 bg-gray-100'; statusText = 'Expirado'; }
@@ -181,7 +192,6 @@ export default function MeusPedidosPage() {
                           </span>
                         </td>
 
-                        {/* Lógica SMS e Ação */}
                         <td className="p-4">
                           {isSucesso ? (
                             <span className="font-mono font-bold text-lg text-green-600 bg-green-50 px-2 py-1 rounded">
@@ -210,8 +220,9 @@ export default function MeusPedidosPage() {
                           ) : null}
                         </td>
 
+                        {/* 🆕 Coluna País usando a função getFlag */}
                         <td className="p-4 text-center text-2xl" title={pedido.pais}>
-                          {pedido.pais === 'Moçambique' ? '🇲🇿' : pedido.pais === 'Brasil' ? '🇧🇷' : pedido.pais === 'Portugal' ? '🇵🇹' : '🌍'}
+                          {getFlag(pedido.pais)}
                         </td>
 
                         <td className="p-4 flex justify-center">
